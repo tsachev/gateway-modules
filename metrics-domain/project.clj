@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/metrics-domain "3.0.8"
+(defproject com.tick42.gateway/metrics-domain "3.0.9-SNAPSHOT"
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[com.tick42.gateway/common :version]
