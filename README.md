@@ -1,4 +1,6 @@
-# Glue42 Gateway Modules
+## What is this and who is it for
+
+This is a component of the Glue42 Core project https://github.com/Glue42/core
 
 ![Build Gateway Modules](https://github.com/Glue42/gateway-modules/workflows/Build%20Gateway%20Modules/badge.svg)
 
