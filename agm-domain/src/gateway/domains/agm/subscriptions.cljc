@@ -40,7 +40,7 @@
 
 (defn- cancel-subscriptions-from
   [state subscription-id subscription subscriber-id reason]
-  (let [{server-id :server stream-id :stream_id method-id :method_id} subscription
+  (let [{server-id :server stream-id :stream method-id :method_id} subscription
         peer (-> (peers/by-id state server-id)
                  (dissoc-in [:agm-domain :interests subscription-id])
                  (disj-stream stream-id subscriber-id subscription-id))

@@ -18,15 +18,18 @@
 (s/def ::invocation (s/keys :req-un [::caller ::method_id ::request_id]))
 (s/def ::invocations (s/map-of ::invocation_id ::invocation))
 
+(s/def ::stream-id string?)
+
+(s/def ::stream ::stream-id)
 (s/def ::server ::common/peer_id)
-(s/def ::subscription (s/keys :req-un [::server ::method_id ::request_id]))
+(s/def ::subscription (s/keys :req-un [::server ::method_id ::request_id]
+                              :opt-un [::stream]))
 (s/def ::subscriptions (s/map-of ::subscription-id ::subscription))
 
 (s/def ::subscriber ::common/peer_id)
 (s/def ::interest (s/keys :req-in [::subscriber ::methods/id]))
 (s/def ::interests (s/map-of ::subscription-id ::interest))
 
-(s/def ::stream-id string?)
 (s/def ::stream-peer-info (s/map-of ::common/peer_id (s/coll-of ::subscription-id :kind set?)))
 (s/def ::streams (s/map-of ::stream-id ::stream-peer-info))
 

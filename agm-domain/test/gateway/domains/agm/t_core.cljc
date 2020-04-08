@@ -265,9 +265,10 @@
                                                            :flags      flags
                                                            :context    ctx}))
               sub-id (get-in (first messages) [:body :subscription_id])
-              [state messages] (-> state
-                                   (core/remove-peer (peers/by-id state peer-id-2)
-                                                     reason))]
+              [state messages] (as-> state ?
+                                     (subs/accepted ? peer-1 {:subscription_id sub-id :peer_id peer-id-1 :stream_id "1"})
+                                     (first ?)
+                                     (core/remove-peer ? (peers/by-id ? peer-id-2) reason))]
           (spec-valid? ::ss/state state)
           (is (= (dissoc state :ids :signature-key)
                  {:domains    {:agm-domain #{peer-id-1}}
