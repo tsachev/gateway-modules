@@ -252,7 +252,7 @@
                                          (concat [(m/unicast (peer->address node-id owner-id) nil
                                                              (ctx->request owner-id ctx))]
                                                  (map (fn [member]
-                                                        (m/unicast (peer->address node-id owner-id) nil
+                                                        (m/unicast (peer->address node-id member) nil
                                                                    (msg/subscribe nil member (:id ctx)))) members))))))
 
 
