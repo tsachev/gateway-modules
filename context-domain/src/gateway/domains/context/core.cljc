@@ -237,12 +237,12 @@
                            (filter #(m/local-source? (:source %)))
                            (map #(let [peer-id (:id %)]
                                    (m/unicast (peer->address node-id peer-id) nil
-                                              (assoc (gmsg/join nil
-                                                                peer-id
-                                                                (get-in % [:context-domain :restrictions])
-                                                                constants/context-domain-uri
-                                                                (:identity %))
-                                                :options (:options %))))))
+                                              (gmsg/join nil
+                                                         peer-id
+                                                         (get-in % [:context-domain :restrictions])
+                                                         constants/context-domain-uri
+                                                         (:identity %)
+                                                         (:options %))))))
 
         create-messages (->> (state/contexts state)
                              (filter :local?)

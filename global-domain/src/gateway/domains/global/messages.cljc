@@ -7,14 +7,17 @@
      (:import [gateway.reason Reason])))
 
 (defn join
-  [request-id peer-id restrictions domain-uri peer-identity]
-  (cond-> {:domain      constants/global-domain-uri
-           :type        :join
-           :request_id  request-id
-           :peer_id     peer-id
-           :destination domain-uri
-           :identity    peer-identity}
-          restrictions (assoc :restrictions restrictions)))
+  ([request-id peer-id restrictions domain-uri peer-identity options]
+   (cond-> (join request-id peer-id restrictions domain-uri peer-identity)
+           options (assoc :options options)))
+  ([request-id peer-id restrictions domain-uri peer-identity]
+   (cond-> {:domain      constants/global-domain-uri
+            :type        :join
+            :request_id  request-id
+            :peer_id     peer-id
+            :destination domain-uri
+            :identity    peer-identity}
+           restrictions (assoc :restrictions restrictions))))
 
 (defn leave
   (

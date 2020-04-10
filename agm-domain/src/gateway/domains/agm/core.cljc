@@ -344,7 +344,8 @@
                                                   peer-id
                                                   (get-in % [:agm-domain :restrictions])
                                                   constants/agm-domain-uri
-                                                  (:identity %))
+                                                  (:identity %)
+                                                  (:options %))
                                        (msg/register nil
                                                      peer-id
                                                      (mapv val (get-in % [:agm-domain :methods peer-id])))])))

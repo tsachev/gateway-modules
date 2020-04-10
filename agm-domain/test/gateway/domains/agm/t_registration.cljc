@@ -362,7 +362,7 @@
                                                     :identity   identity-2})
                                (first)
 
-                               ;; the third peer
+                               ;; the service peer
                                (create-join-service peer-3 peer-3-join-request))]
       (spec-valid? ::ss/state state)
       (just? messages
@@ -374,7 +374,61 @@
               (m/broadcast {:type    :peer
                             :peer-id peer-id-3
                             :node    node-id}
-                           (assoc peer-3-join-request :options {:service? true}))]))))
+                           (assoc peer-3-join-request :options {:service? true}))])))
+  (testing "the order doesnt matter"
+    (let [
+          {peer-id-1 :id identity-1 :identity peer-1 :source} (local-peer)
+          {peer-id-2 :id identity-2 :identity peer-2 :source} (local-peer)
+          {peer-id-3 :id identity-3 :identity peer-3 :source} (local-peer)
+
+          empty-state (new-state)
+          rid (request-id!)
+
+          identity-1 (assoc identity-1 :user "user-1")
+          identity-2 (assoc identity-2 :user "user-2")
+          identity-3 (assoc identity-3 :user "user-3")
+
+
+          peer-3-join-request {:domain      c/global-domain-uri
+                               :destination constants/agm-domain-uri
+                               :type        :join
+                               :request_id  rid
+                               :peer_id     peer-id-3
+                               :identity    identity-3}
+
+          [state messages] (-> empty-state
+
+                               ;; the first peer
+                               (create-join peer-1 {:type       :join
+                                                    :request_id rid
+                                                    :peer_id    peer-id-1
+                                                    :identity   identity-1})
+                               (first)
+
+                               ;; the service peer
+                               (create-join-service peer-3 peer-3-join-request)
+                               (first)
+
+                               ;; the third peer
+                               (create-join peer-2 {:type       :join
+                                                    :request_id rid
+                                                    :peer_id    peer-id-2
+                                                    :identity   identity-2}))]
+      (spec-valid? ::ss/state state)
+      (just? messages
+             [(msgs/peer-added peer-3 peer-id-3 peer-id-2 identity-2 {:local true})
+              (msgs/peer-added peer-2 peer-id-2 peer-id-3 identity-3 {:local true})
+              (msgs/success peer-2 rid peer-id-2)
+              (m/broadcast {:type    :peer
+                            :peer-id peer-id-2
+                            :node    node-id}
+                           {:domain      c/global-domain-uri
+                            :destination constants/agm-domain-uri
+                            :type        :join
+                            :request_id  rid
+                            :peer_id     peer-id-2
+                            :identity    identity-2})]))))
+
 
 (deftest methods-1
   (testing "methods added from a local peer are announced to all local peers that can see them and then broadcasted"

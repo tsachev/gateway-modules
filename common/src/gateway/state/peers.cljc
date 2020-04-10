@@ -167,7 +167,7 @@
 
          rhs-identity (:identity rhs-peer)
          rhs-restrictions (get-in rhs-peer [domain :restrictions])
-         rhs-service? (get-in lhs-peer [:options :service?])]
+         rhs-service? (get-in rhs-peer [:options :service?])]
      (and (not= (:id rhs-peer) (:id lhs-peer))
           (peer-visible? lhs-identity lhs-restrictions lhs-service?
                          rhs-identity rhs-restrictions rhs-service?)))))
