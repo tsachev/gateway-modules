@@ -27,9 +27,10 @@
    :version           version})
 
 (defn subscribe
-  [request-id peer-id context-id]
+  [request-id peer-id context]
   {:domain     constants/context-domain-uri
    :type       :subscribe-context
    :peer_id    peer-id
    :request_id request-id
-   :context_id context-id})
+   :context_id (:id context)
+   :name (:name context)})

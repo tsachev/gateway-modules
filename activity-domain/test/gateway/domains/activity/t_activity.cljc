@@ -875,6 +875,7 @@
                                        :node    node-id}
                                       (assoc update-rq
                                         :type :update-context
+                                        :name context-id
                                         :version (msgs->ctx-version messages)))]))))
     (testing "The activity context is not announced to a peer that joins the domain"
       (let [messages (-> activity-state

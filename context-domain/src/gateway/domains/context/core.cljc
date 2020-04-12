@@ -253,7 +253,7 @@
                                                              (ctx->request owner-id ctx))]
                                                  (map (fn [member]
                                                         (m/unicast (peer->address node-id member) nil
-                                                                   (msg/subscribe nil member (:id ctx)))) members))))))
+                                                                   (msg/subscribe nil member ctx))) members))))))
 
 
         messages (concat join-messages create-messages)]

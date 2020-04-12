@@ -15,8 +15,8 @@
 (defn request->Activity
   [state request peer]
   (let [[new-ids ctx-id] (ids/context-id (:ids state))
-        context (contexts/->ctx (:identity peer)
-                                nil
+        context (contexts/->ctx peer
+                                ctx-id
                                 (:initial_context request)
                                 :activity
                                 (:read_permissions request)

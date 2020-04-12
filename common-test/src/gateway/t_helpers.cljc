@@ -22,8 +22,10 @@
 
 ;; ids
 
-(defonce node-id (apply str (remove #{\-} (str #?(:clj  (java.util.UUID/randomUUID)
+(defn ->node-id [] (apply str (remove #{\-} (str #?(:clj  (java.util.UUID/randomUUID)
                                                   :cljs (random-uuid))))))
+
+(defonce node-id (->node-id))
 
 (defn new-state
   ([] (new-state node-id))

@@ -132,20 +132,25 @@
   "Processes a context creation request coming from a remote node"
 
   [domain-uri state source request]
-  (let [{:keys [request_id peer_id context_id delta]} request]
+  (let [{:keys [request_id peer_id name delta]} request]
     (try
-      (let [peer (peers/by-id* state peer_id)
-            context (state/context-by-id* state context_id)]
-        (if (and (can-write? context peer)
-                 (should-update? request context))
-          (state-> (update* state
-                            context
-                            peer_id
-                            (reduce-kv #(assoc %1 (keyword %2) %3) {} delta)
-                            (:version request)))
-          [state nil]))
+      (let [peer (peers/by-id* state peer_id)]
+        (if-let [context (state/context-by-name state name peer)]
+          (do
+            (if (and (can-write? context peer)
+                     (should-update? request context))
+              (state-> (update* state
+                                context
+                                peer_id
+                                (reduce-kv #(assoc %1 (keyword %2) %3) {} delta)
+                                (:version request)))
+              [state nil]))
+          (do
+            (timbre/warn "unable to find remote context" name)
+            [state nil])))
       (catch #?(:clj  Exception
                 :cljs :default) e
+        (timbre/error e "ERROR PERFORMING REMOTE CONTEXT UPDATE")
         [state nil]))))
 
 (defn- local-update-ctx
@@ -170,7 +175,8 @@
                                          peer_id)
                               (m/broadcast (peer->address (ids/node-id (:ids state)) peer_id)
                                            (assoc request :type :update-context
-                                                          :version version))]]))))
+                                                          :version version
+                                                          :name (:name context)))]]))))
       (catch #?(:clj  Exception
                 :cljs :default) e
         [state [(m/error domain-uri
@@ -204,7 +210,7 @@
   [state creator local? request]
   (let [{:keys [name data lifetime read_permissions write_permissions peer_id]} request
         [new-ids ctx-id] (ids/context-id (:ids state))
-        ctx (cond-> (assoc (state/->ctx (:identity creator)
+        ctx (cond-> (assoc (state/->ctx creator
                                         name
                                         data
                                         lifetime
@@ -230,13 +236,16 @@
   "Add the peer to the context members for the purpose of ref-counted context destruction"
 
   [domain-uri state source request]
-  (let [{:keys [request_id peer_id context_id]} request]
+  (let [{:keys [request_id peer_id name]} request]
     (try
-      (let [peer (peers/by-id* state peer_id)
-            context (state/context-by-id* state context_id)]
-
-        (check-can-read* domain-uri context peer)
-        [(state/add-context-member state context peer_id) nil])
+      (let [peer (peers/by-id* state peer_id)]
+        (if-let [context (state/context-by-name state name peer)]
+          (do
+            (check-can-read* domain-uri context peer)
+            [(state/add-context-member state context peer_id) nil])
+          (do
+            (timbre/warn "unable to find remote context" name)
+            [state nil])))
       (catch #?(:clj  Exception
                 :cljs :default) e
         [state nil]))))
@@ -255,7 +264,8 @@
         (state-> [state nil]
                  (sfun source request_id context peer_id)
                  ((fn [_] [nil (m/broadcast (peer->address (ids/node-id (:ids state)) peer_id)
-                                            (assoc request :type :subscribe-context))]))))
+                                            (assoc request :type :subscribe-context
+                                                           :name (:name context)))]))))
       (catch #?(:clj  Exception
                 :cljs :default) e
         [state [(m/error domain-uri
@@ -276,14 +286,15 @@
 (defn- broadcast-added
   "Broadcasts that the context is added to the local peers. The remote peers will be told so by their own node"
 
-  [state context creator-id]
+  [state context creator]
   (let [ctx-name (:name context)
-        ctx-id (:id context)]
+        ctx-id (:id context)
+        creator-id (:id creator)]
     (into [] (comp
                (filter peers/local-peer?)
                (filter (partial can-read? context))
                (map #(msg/context-added (peer->domain-uri %) (:source %) (:id %) creator-id ctx-id ctx-name)))
-          (peers/peers state :context-domain))))
+          (peers/visible-peers state :context-domain creator true))))
 
 (defn- broadcast-destroyed
   "Broadcasts that the context has been destroyed to the local peers. The remote peers will be told so by their own node"
@@ -313,7 +324,7 @@
   (let [{:keys [request_id peer_id name]} request]
     (try
       (let [peer (peers/by-id* state peer_id)]
-        (if-let [existing-context (state/context-by-name state name)]
+        (if-let [existing-context (state/context-by-name state name peer)]
 
           ;; the context already exists, we should either reset its image or ignore the request
           (do
@@ -330,7 +341,7 @@
           (let [[new-state ctx] (->> request
                                      (preprocess domain-uri)
                                      (request->ctx state peer false))]
-            [new-state (broadcast-added new-state ctx peer_id)])))
+            [new-state (broadcast-added new-state ctx peer)])))
       (catch #?(:clj  Exception
                 :cljs :default) e
         ;; swallow the exception since we cant send it back to the remote peer
@@ -344,7 +355,7 @@
   (let [{:keys [request_id peer_id name]} request]
     (try
       (let [peer (peers/by-id* state peer_id)]
-        (if-let [existing-context (state/context-by-name state name)]
+        (if-let [existing-context (state/context-by-name state name peer)]
 
           ;; the context already exists
           (do
@@ -355,7 +366,7 @@
           (let [[new-state ctx] (->> request
                                      (preprocess domain-uri)
                                      (request->ctx state peer true))]
-            [new-state (-> (broadcast-added new-state ctx peer_id)
+            [new-state (-> (broadcast-added new-state ctx peer)
                            (conj (msg/context-created domain-uri source request_id peer_id (:id ctx))
                                  (m/broadcast (peer->address (ids/node-id (:ids state)) peer_id)
                                               (assoc request :type :create-context
@@ -406,14 +417,18 @@
 (defn- remote-destroy
   [domain-uri state source request]
 
-  (let [{:keys [peer_id context_id]} request]
+  (let [{:keys [peer_id name]} request]
     (try
-      (let [peer (peers/by-id* state peer_id)
-            context (state/context-by-id* state context_id)]
-        (check-can-destroy* domain-uri context peer)
+      (let [peer (peers/by-id* state peer_id)]
+        (if-let [context (state/context-by-name state name peer)]
+          (do
+            (check-can-destroy* domain-uri context peer)
 
-        ;; destroy the context and send success
-        (destroy* domain-uri state context (constants/context-destroyed-explicitly domain-uri)))
+            ;; destroy the context and send success
+            (destroy* domain-uri state context (constants/context-destroyed-explicitly domain-uri)))
+          (do
+            (timbre/warn "unable to find remote context" name)
+            [state nil])))
       (catch #?(:clj  Exception
                 :cljs :default) e
         [state nil]))))
@@ -434,7 +449,8 @@
                                            request_id
                                            peer_id)
                                 (m/broadcast (peer->address (ids/node-id (:ids state)) peer_id)
-                                             (assoc request :type :destroy-context))]]))))
+                                             (assoc request :type :destroy-context
+                                                            :name (:name context)))]]))))
       (catch #?(:clj  Exception
                 :cljs :default) e
         [state [(m/error domain-uri
@@ -476,13 +492,17 @@
 (defn- remote-unsubscribe
 
   [domain-uri state source request]
-  (let [{:keys [request_id peer_id context_id]} request]
+  (let [{:keys [request_id peer_id name]} request]
     (try
-      (let [peer (peers/by-id* state peer_id)
-            context (state/context-by-id* state context_id)]
-        (remove-peer-from-context domain-uri state peer_id context))
+      (let [peer (peers/by-id* state peer_id)]
+        (if-let [context (state/context-by-name state name peer)]
+          (remove-peer-from-context domain-uri state peer_id context)
+          (do
+            (timbre/warn "unable to find remote context" name)
+            [state nil])))
       (catch #?(:clj  Exception
                 :cljs :default) e
+        (timbre/warn e "unable to process remote unsubscribe" request)
         [state nil]))))
 
 (defn- local-unsubscribe
@@ -498,7 +518,8 @@
                                            request_id
                                            peer_id)
                                 (m/broadcast (peer->address (ids/node-id (:ids state)) peer_id)
-                                             (assoc request :type :unsubscribe-context))]]))))
+                                             (assoc request :type :unsubscribe-context
+                                                            :name (:name context)))]]))))
       (catch #?(:clj  Exception
                 :cljs :default) e
         [state [(m/error domain-uri

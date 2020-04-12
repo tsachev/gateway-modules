@@ -18,11 +18,24 @@
 (defn context-by-name
   "Finds a context by name. Actually faster than filter/some"
 
-  [state name]
-  (reduce
-    (fn [_ c] (when (= name (:name c)) (reduced c)))
-    nil
-    (vals (:contexts state))))
+  [state name peer]
+  (let [peer-user (some-> peer :identity :user)
+        service? (some-> peer :options :service?)
+        contexts (vals (:contexts state))]
+
+    (or
+      ;; try to match against the same user
+      (reduce
+        (fn [_ c] (when (and (= name (:name c))
+                             (= peer-user (some-> c :identity :user))) (reduced c)))
+        nil
+        contexts)
+      ;; try to match against a context that was created by a service
+      (reduce
+        (fn [_ c] (when (and (= name (:name c))
+                             (or service? (some-> c :options :service?))) (reduced c)))
+        nil
+        contexts))))
 
 (defn context-by-id
   [state context-id]
@@ -111,16 +124,19 @@
         (assoc-in [:contexts context-id :version] version))))
 
 (defn ->ctx
-  [identity name data lifetime read_permissions write_permissions ctx-id version]
-  (cond-> {:id                ctx-id
-           :data              data
-           :identity          identity
-           :lifetime          lifetime
-           :read_permissions  read_permissions
-           :write_permissions write_permissions
-           :members           #{}
-           :version           version}
-          name (assoc :name name)))
+  [creator name data lifetime read_permissions write_permissions ctx-id version]
+  (let [identity (:identity creator)
+        options (:options creator)]
+    (cond-> {:id                ctx-id
+             :data              data
+             :identity          identity
+             :lifetime          lifetime
+             :read_permissions  read_permissions
+             :write_permissions write_permissions
+             :members           #{}
+             :version           version
+             :name              name}
+            options (assoc :options options))))
 
 (defn next-version []
   (util/current-time)) 
