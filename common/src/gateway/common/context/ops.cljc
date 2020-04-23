@@ -27,7 +27,12 @@
   "Checks if the request should be applied on an existing context"
 
   [request context]
-  (>= (:version request) (:version context)))
+  (let [request-version (:version request)
+        context-version (:version context)]
+    (or
+      (> (:updates request-version) (:updates context-version))
+      (and (= (:updates request-version) (:updates context-version))
+           (>= (:timestamp request-version) (:timestamp context-version))))))
 
 ;; context permissioning
 
@@ -150,7 +155,7 @@
             [state nil])))
       (catch #?(:clj  Exception
                 :cljs :default) e
-        (timbre/error e "ERROR PERFORMING REMOTE CONTEXT UPDATE")
+        (timbre/error e "error performing remote context update")
         [state nil]))))
 
 (defn- local-update-ctx
@@ -161,9 +166,10 @@
     (try
       (let [peer (peers/by-id* state peer_id)
             context (state/context-by-id* state context_id)
-            version (state/next-version)]
+            version (state/next-version context)]
         (when-not (can-write? context peer)
           (throw-reason domain-uri "Not authorized to update context"))
+
         (state-> (update* state
                           context
                           peer_id
@@ -182,7 +188,7 @@
         [state [(m/error domain-uri
                          source
                          request_id
-                         peer_id
+                       peer_id
                          (ex->Reason e (constants/failure domain-uri)))]]))))
 
 (>defn update-ctx
@@ -213,11 +219,11 @@
         ctx (cond-> (assoc (state/->ctx creator
                                         name
                                         data
-                                        lifetime
+                                        lifetime                                                                                   
                                         read_permissions
                                         write_permissions
                                         ctx-id
-                                        (state/next-version))
+                                        (state/new-version))
                       :members #{peer_id}
                       :local? local?)
                     (= lifetime :ownership) (assoc :owner peer_id))]

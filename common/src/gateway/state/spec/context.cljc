@@ -13,7 +13,10 @@
 (s/def ::lifetime (s/and keyword? #(contains? #{:ref-counted :ownership :retained :activity} %)))
 (s/def ::members (s/coll-of ::common/peer_id :kind set?))
 (s/def ::owner ::common/peer_id)
-(s/def ::version number?)
+
+(s/def ::updates number?)
+(s/def ::timestamp number?)
+(s/def ::version (s/keys :req-un [::updates ::timestamp]))
 
 (s/def ::context (s/keys :req-un [::id ::lifetime ::members]
                          :opt-un [::name ::read_permissions ::write_permissions ::data ::owner ::version]))

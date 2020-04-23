@@ -137,6 +137,13 @@
              :version           version
              :name              name}
             options (assoc :options options))))
+                                                                                            
+(defn next-version [context]
+  (let [version (:version context {:updates 0})]
+    (-> version
+        (update :updates inc')
+        (assoc :timestamp (util/current-time)))))
 
-(defn next-version []
-  (util/current-time)) 
+(defn new-version []
+  {:updates 0
+   :timestamp (util/current-time)})

@@ -965,10 +965,21 @@
       (is (= messages [(msg/context-added peer-2 peer-id-2 peer-id-1 (:id replicated-ctx) context-name)]))
       (is (= (:data replicated-ctx) ctx-data)))))
 
-(def context-version (atom 0))
+(def timestamp (atom 0))
+
+(defn next-version [context]
+  (let [version (:version context {:updates 0})]
+    (-> version
+        (update :updates inc')
+        (assoc :timestamp (swap! timestamp inc)))))
+
+(defn new-version []
+  {:updates 0
+   :timestamp (swap! timestamp inc)})
 
 (deftest context-create-replaces-older-remote-context
-  (with-redefs [state/next-version (fn [] (swap! context-version inc))]
+  (with-redefs [state/next-version next-version
+                state/new-version new-version]
     (testing "context creation overrides an existing older context"
       (let [{peer-id-1 :id identity-1 :identity peer-1 :source} (local-peer)
             {peer-id-2 :id identity-2 :identity peer-2 :source} (local-peer)
@@ -1036,7 +1047,8 @@
 
           ;; create a context on node 2
           context-name "context"
-          [node2-state messages] (with-redefs [state/next-version (fn [] 2)]
+          [node2-state messages] (with-redefs [state/new-version (fn [] {:updates 2 :timestamp 0})
+                                               state/next-version next-version]
                                    (-> node2-state
                                        (ctx/create peer-1 {:domain     constants/context-domain-uri
                                                            :type       :create-context
@@ -1048,7 +1060,8 @@
           ctx-id (context-id :context-created messages)
 
           ;; create a context on node 1
-          [node1-state messages] (with-redefs [state/next-version (fn [] 1)]
+          [node1-state messages] (with-redefs [state/new-version (fn [] {:updates 1 :timestamp 0})
+                                               state/next-version next-version]
                                    (-> node1-state
                                        (ctx/create peer-1 {:domain     constants/context-domain-uri
                                                            :type       :create-context
@@ -1070,7 +1083,8 @@
 
 
 (deftest context-update-propagated
-  (with-redefs [state/next-version (fn [] (swap! context-version inc))]
+  (with-redefs [state/next-version next-version
+                state/new-version new-version]
     (testing "context updated on one node, gets updated on the other nodes"
       (let [{peer-id-1 :id identity-1 :identity peer-1 :source} (local-peer)
             {peer-id-2 :id identity-2 :identity peer-2 :source} (local-peer)
@@ -1124,7 +1138,8 @@
         (is (= (:data replicated-ctx) (:data (state/context-by-name node1-state context-name (peers/by-id* node1-state peer-id-1)))))))))
 
 (deftest subscribe-unsubscribe-ref-counting
-  (with-redefs [state/next-version (fn [] (swap! context-version inc))]
+  (with-redefs [state/next-version next-version
+                state/new-version new-version]
     (testing "subscriptions are tracked on local and remote nodes"
       (let [{peer-id-1 :id identity-1 :identity peer-1 :source} (local-peer)
             {peer-id-2 :id identity-2 :identity peer-2 :source} (local-peer)
@@ -1230,7 +1245,8 @@
 
 
 (deftest state-propagation
-  (with-redefs [state/next-version (fn [] (swap! context-version inc))]
+  (with-redefs [state/next-version next-version
+                state/new-version new-version]
     (testing "testing that the state is propagated via messages"
       (let [{peer-id-1 :id identity-1 :identity peer-1 :source} (local-peer)
 

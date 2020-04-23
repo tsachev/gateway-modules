@@ -22,7 +22,7 @@
                                 (:read_permissions request)
                                 (:write_permissions request)
                                 ctx-id
-                                (contexts/next-version))
+                                (contexts/new-version))
         [new-ids act-id] (ids/activity-id new-ids)
         activity (assoc (activity act-id
                                   (:activity_type request)
