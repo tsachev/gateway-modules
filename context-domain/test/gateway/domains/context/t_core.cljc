@@ -970,7 +970,7 @@
 (defn next-version [context]
   (let [version (:version context {:updates 0})]
     (-> version
-        (update :updates inc')
+        (update :updates inc)
         (assoc :timestamp (swap! timestamp inc)))))
 
 (defn new-version []
