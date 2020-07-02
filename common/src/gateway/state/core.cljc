@@ -1,8 +1,8 @@
 (ns gateway.state.core
   (:require [gateway.common.utilities :as util]
             [gateway.id-generators :as ids]
-            [gateway.reason :refer [->Reason throw-reason]]
-            ))
+            [gateway.reason :refer [->Reason throw-reason]]))
+
 
 
 
@@ -28,9 +28,9 @@
   [state peer-id domain]
   (-> state
       (update-in [:peers peer-id] dissoc domain)
-      (util/disj-in [:domains domain] peer-id)
+      (util/disj-in [:domains domain] peer-id)))
       ;(update-in [:domains domain] disj peer-id)
-      ))
+
 
 (defn in-domain
   (

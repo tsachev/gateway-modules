@@ -853,6 +853,15 @@
                  (state/apply-delta ctx {:updated {:data {:color "green"}}} 1)
                  (state/context-by-id 1)
                  :data)))))
+  (testing "updated works with arrays"
+      (let [state {:contexts {1 {:id   1
+                                 :data {:array [{"a" 1} {"b" 2}]}}}}
+            ctx (state/context-by-id state 1)]
+        (is (= {:array [{"a" 1} {"b" 2} {"c" 3} {"d" 4}]}
+               (-> state
+                   (state/apply-delta ctx {:updated {:array [{"a" 1} {"b" 2} {"c" 3} {"d" 4}]}} 1)
+                   (state/context-by-id 1)
+                   :data)))))
   (testing "added replaces the corresponding keys"
     (let [state {:contexts {1 {:id   1
                                :data {:meta {:channel "red"}
@@ -1224,9 +1233,9 @@
                 ;; propagate on node 1
                 b (last messages2)
                 [node1-state' messages1] (-> node1-state
-                                             (ctx/unsubscribe (:source b) (:body b)))
+                                             (ctx/unsubscribe (:source b) (:body b)))]
 
-                ]
+
             ;; after removing the corresponding local peers, the contexts are still alive
             (is (= 1
                    (-> (state/context-by-id node1-state ctx-id)
@@ -1234,8 +1243,8 @@
                        count)
                    (-> (state/context-by-id node2-state ctx-id-2)
                        :members
-                       count)
-                   ))
+                       count)))
+
 
             ;; and then after the remote peers disappear, the contexts are destroyed
             (is (= :context-destroyed (-> messages1 last :body :type)))

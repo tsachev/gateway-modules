@@ -96,9 +96,10 @@
   (if (some? updated-dict)
     (reduce-kv (fn [data k v]
                  (update data k (fn [existing]
-                                  (if (and (associative? v) (associative? existing))
-                                    (merge existing v)
-                                    v))))
+                                  (cond
+                                    (and (vector? v) (vector? existing)) v
+                                    (and (associative? v) (associative? existing)) (merge existing v)
+                                    :else v))))
                context-data
                updated-dict)
     context-data))
@@ -137,7 +138,7 @@
              :version           version
              :name              name}
             options (assoc :options options))))
-                                                                                            
+
 (defn next-version [context]
   (let [version (:version context {:updates 0})]
     (-> version
@@ -145,5 +146,5 @@
         (assoc :timestamp (util/current-time)))))
 
 (defn new-version []
-  {:updates 0
+  {:updates   0
    :timestamp (util/current-time)})
