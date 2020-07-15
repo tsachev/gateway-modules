@@ -45,11 +45,11 @@
 
 (defn destroy-peer
   [state source request]
-  (let [{:keys [request_id peer_id target_id]} request]
+  (let [{:keys [request_id peer_id destroy_peer_id]} request]
     (let [peer (peers/by-id* state peer_id :activity-domain)
-          target (peers/by-id* state target_id)]
+          target (peers/by-id* state destroy_peer_id)]
       [state [(msg/dispose-peer (:source target)
-                                target_id
+                                destroy_peer_id
                                 peer_id
                                 (request->Reason request))
               (msg/success request_id
