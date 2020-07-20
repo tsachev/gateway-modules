@@ -34,4 +34,4 @@
   [endpoint ip]
   (if (and endpoint (string/includes? endpoint "127.0.0.1"))
     (or ip endpoint)
-    endpoint))
+    (or endpoint ip)))
