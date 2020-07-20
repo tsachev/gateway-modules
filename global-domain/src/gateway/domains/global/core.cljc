@@ -32,7 +32,8 @@
             [gateway.state.spec.state :as s]
             [gateway.common.spec.messages :as message-spec]
 
-            [clojure.spec.alpha :as spec]))
+            [clojure.spec.alpha :as spec]
+            [clojure.string :as string]))
 
 (def ^:redef -measurements- nil)
 
@@ -93,7 +94,6 @@
     (assoc remote-identity :user user)
     remote-identity))
 
-
 (defn authenticated
   [state source authentication-response configuration environment]
   (let [{request-id      :request_id
@@ -107,7 +107,7 @@
 
         [state _] (state/remove-gateway-request state (:id gw-request))
 
-        resolved-identity (cond-> (merge {:machine (or (:endpoint source) (:local-ip environment))}
+        resolved-identity (cond-> (merge {:machine (peer-identity/machine (:endpoint source) (:local-ip environment))}
                                          (peer-identity/keywordize-id remote-identity)
                                          (select-keys authentication-response [:user :login]))
                                   (:impersonate-peer authentication-response) (impersonate (:impersonate-peer authentication-response)))

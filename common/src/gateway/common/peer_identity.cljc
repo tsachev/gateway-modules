@@ -1,6 +1,6 @@
 (ns gateway.common.peer-identity
-  (:require [gateway.constants :as constants]
-            [gateway.reason :refer [throw-reason]]))
+  (:require [gateway.reason :refer [throw-reason]]
+            [clojure.string :as string]))
 
 
 (def known-identity-keys {"application" {:required true}
@@ -29,3 +29,9 @@
   [identity]
   (when-let [missing-key (missing-key? identity)]
     (throw (ex-info (str "Identity " identity " is missing a required key: " missing-key) {}))))
+
+(defn machine
+  [endpoint ip]
+  (if (and endpoint (string/includes? endpoint "127.0.0.1"))
+    (or ip endpoint)
+    endpoint))

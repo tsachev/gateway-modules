@@ -1,6 +1,7 @@
 (ns gateway.domains.metrics.core
   (:require [taoensso.timbre :as timbre]
-            [gateway.common.messages :refer [success error] :as m]
+            [gateway.common.messages :refer [success error]]
+            [gateway.common.peer-identity :as peer-identity]
 
             [gateway.state.core :as state]
             [gateway.state.peers :as peers]
@@ -25,7 +26,7 @@
 
 (defn- default-repository-id
   [environment source peer-identity]
-  {:machine    (or (:machine peer-identity) (:endpoint source) (:local-ip environment) "127.0.0.1")
+  {:machine    (or (:machine peer-identity) (peer-identity/machine (:endpoint source) (:local-ip environment)) "127.0.0.1")
    :process-id (:process-id environment)
    :start-time (util/current-time)
 
