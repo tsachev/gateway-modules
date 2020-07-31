@@ -1,7 +1,8 @@
 (ns gateway.common.context.state
   (:require [gateway.common.utilities :as util]
             [gateway.reason :refer [->Reason throw-reason]]
-            [taoensso.timbre :as timbre]))
+            [taoensso.timbre :as timbre]
+            [clojure.string :as string]))
 
 ;; contexts
 
@@ -75,15 +76,15 @@
 
 ;; context delta processing
 
-(defmulti apply-command (fn [context-data cmd] (first cmd)))
+(defmulti apply-delta-cmd (fn [context-data cmd] (first cmd)))
 
-(defmethod apply-command :removed
+(defmethod apply-delta-cmd :removed
   [context-data [_ removed-keys]]
   (if (seq removed-keys)
     (apply dissoc context-data removed-keys)
     context-data))
 
-(defmethod apply-command :added
+(defmethod apply-delta-cmd :added
   [context-data [_ added-dict]]
   (if (some? added-dict)
     (reduce-kv assoc
@@ -91,7 +92,7 @@
                added-dict)
     context-data))
 
-(defmethod apply-command :updated
+(defmethod apply-delta-cmd :updated
   [context-data [_ updated-dict]]
   (if (some? updated-dict)
     (reduce-kv (fn [data k v]
@@ -104,11 +105,51 @@
                updated-dict)
     context-data))
 
-(defmethod apply-command :reset
+(defmethod apply-delta-cmd :reset
   [context-data [_ updated-dict]]
   (if updated-dict updated-dict context-data))
 
-(defmethod apply-command :default
+(defmulti apply-command (fn [context-data cmd] (keyword (:type cmd))))
+
+(defn- get-map
+  [m k]
+  (let [v (get m k)]
+    (if (or (nil? v) (not (map? v))) {} v)))
+
+(defn- set-in
+  [m [k & ks] v]
+  (if (nil? k)
+    v
+    (if ks
+      (assoc m k (set-in (get-map m k) ks v))
+      (assoc m k v))))
+
+(defn- string->path
+  [s]
+  (if (string/blank? s)
+    nil
+    (string/split s #"\.")))
+
+(defmethod apply-command :set
+  [context-data {:keys [value path]}]
+  (set-in (or context-data {}) (string->path path) value))
+
+(defmethod apply-command :remove
+  [context-data {:keys [path]}]
+  (let [p (string->path path)]
+    (if (nil? p)
+      {}
+      (util/dissoc-in context-data p {:keep true}))))
+
+(defmethod apply-delta-cmd :commands
+  [context-data [_ commands]]
+  (reduce
+    (fn [result cmd]
+      (apply-command result (util/keywordize cmd)))
+    context-data
+    commands))
+
+(defmethod apply-delta-cmd :default
   [context-data [cmd payload]]
   (timbre/warn "ignoring unknown context delta command" cmd "with payload" payload)
   context-data)
@@ -119,7 +160,7 @@
   (let [context-id (:id context)]
     (-> state
         (assoc-in [:contexts context-id :data]
-                  (reduce apply-command
+                  (reduce apply-delta-cmd
                           (or (:data context) {})
                           delta))
         (assoc-in [:contexts context-id :version] version))))

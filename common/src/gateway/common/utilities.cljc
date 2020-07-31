@@ -10,15 +10,17 @@
   "Dissociate a value in a nested associative structure, identified by a sequence
   of keys. Any collections left empty by the operation will be dissociated from
   their containing structures."
-  [m ks]
-  (if-let [[k & ks] (seq ks)]
-    (if (seq ks)
-      (let [v (dissoc-in (get m k) ks)]
-        (if (zero? (count v))
-          (dissoc m k)
-          (assoc m k v)))
-      (dissoc m k))
-    m))
+  [m ks & [opts]]
+  (if (not (map? m))
+    m
+    (if-let [[k & ks] (seq ks)]
+      (if (seq ks)
+        (let [v (dissoc-in (get m k) ks opts)]
+          (if (and (zero? (count v)) (not (:keep opts)))
+            (dissoc m k)
+            (assoc m k v)))
+        (dissoc m k))
+      m)))
 
 (defn merge-in
   [m ks & vs]

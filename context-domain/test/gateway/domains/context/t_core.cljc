@@ -854,14 +854,14 @@
                  (state/context-by-id 1)
                  :data)))))
   (testing "updated works with arrays"
-      (let [state {:contexts {1 {:id   1
-                                 :data {:array [{"a" 1} {"b" 2}]}}}}
-            ctx (state/context-by-id state 1)]
-        (is (= {:array [{"a" 1} {"b" 2} {"c" 3} {"d" 4}]}
-               (-> state
-                   (state/apply-delta ctx {:updated {:array [{"a" 1} {"b" 2} {"c" 3} {"d" 4}]}} 1)
-                   (state/context-by-id 1)
-                   :data)))))
+    (let [state {:contexts {1 {:id   1
+                               :data {:array [{"a" 1} {"b" 2}]}}}}
+          ctx (state/context-by-id state 1)]
+      (is (= {:array [{"a" 1} {"b" 2} {"c" 3} {"d" 4}]}
+             (-> state
+                 (state/apply-delta ctx {:updated {:array [{"a" 1} {"b" 2} {"c" 3} {"d" 4}]}} 1)
+                 (state/context-by-id 1)
+                 :data)))))
   (testing "added replaces the corresponding keys"
     (let [state {:contexts {1 {:id   1
                                :data {:meta {:channel "red"}
@@ -901,19 +901,69 @@
                  (state/apply-delta ctx {:reset nil} 1)
                  (state/context-by-id 1)
                  :data)))))
-  (testing "sending invalid commands are ignored"
-    (let [data {:bleh {:a 1}
-                :data {:color "red"
-                       :fruit "apple"}
-                :meta {:channel "red"}}
+  (testing "set can override top level properties"
+    (let [data {"prop" {"a" 1 "b" 2} "c" 3}
           state {:contexts {1 {:id   1
                                :data data}}}
           ctx (state/context-by-id state 1)]
-      (is (= data
+      (is (= {"prop" {"d" 4} "c" 3}
              (-> state
-                 (state/apply-delta ctx {"bleh" 123} 1)
+                 (state/apply-delta ctx {:commands [{:type "set" :path "prop" :value {"d" 4}}]} 1)
                  (state/context-by-id 1)
-                 :data))))))
+                 :data)))))
+  (testing "set can add a new top level property"
+    (let [data {"prop" {"a" 1 "b" 2} "c" 3}
+          state {:contexts {1 {:id   1
+                               :data data}}}
+          ctx (state/context-by-id state 1)]
+      (is (= {"prop" {"a" 1 "b" 2} "c" 3 "e" 5}
+             (-> state
+                 (state/apply-delta ctx {:commands [{:type "set" :path "e" :value 5}]} 1)
+                 (state/context-by-id 1)
+                 :data)))))
+  (testing "set with empty path replaces the whole object"
+    (let [data {"prop" {"a" 1 "b" 2} "c" 3}
+          state {:contexts {1 {:id   1
+                               :data data}}}
+          ctx (state/context-by-id state 1)]
+      (is (= {"wow" 4}
+             (-> state
+                 (state/apply-delta ctx {:commands [{:type "set" :path "" :value {"wow" 4}}]} 1)
+                 (state/context-by-id 1)
+                 :data)))))
+  (testing "set can create deeply nested properties"
+      (let [data {"prop" {"a" 1 "b" 2} "c" 3}
+            state {:contexts {1 {:id   1
+                                 :data data}}}
+            ctx (state/context-by-id state 1)]
+        (is (= {"prop" {"a" {"x" {"y" 42}} "b" 2} "c" 3}
+               (-> state
+                   (state/apply-delta ctx {:commands [{:type "set" :path "prop.a.x.y" :value 42}]} 1)
+                   (state/context-by-id 1)
+                   :data)))))
+
+  (testing "remove doesnt recursively remove empty parents"
+      (let [data {"prop" {"a" 1} "c" 3}
+            state {:contexts {1 {:id   1
+                                 :data data}}}
+            ctx (state/context-by-id state 1)]
+        (is (= {"prop" {} "c" 3}
+               (-> state
+                   (state/apply-delta ctx {:commands [{:type "remove" :path "prop.a"}]} 1)
+                   (state/context-by-id 1)
+                   :data)))))
+
+  (testing "remove with empty path removes everything"
+        (let [data {"prop" {"a" 1} "c" 3}
+              state {:contexts {1 {:id   1
+                                   :data data}}}
+              ctx (state/context-by-id state 1)]
+          (is (= {}
+                 (-> state
+                     (state/apply-delta ctx {:commands [{:type "remove" :path ""}]} 1)
+                     (state/context-by-id 1)
+                     :data)))))
+  )
 
 
 (defn remote-join
@@ -983,7 +1033,7 @@
         (assoc :timestamp (swap! timestamp inc)))))
 
 (defn new-version []
-  {:updates 0
+  {:updates   0
    :timestamp (swap! timestamp inc)})
 
 (deftest context-create-replaces-older-remote-context

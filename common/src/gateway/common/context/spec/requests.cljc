@@ -16,8 +16,16 @@
 (s/def ::added map?)
 (s/def ::updated map?)
 (s/def ::reset map?)
+
+(s/def ::type #{:set :remove})
+(s/def ::path string?)
+(s/def ::value any?)
+(s/def ::command (s/keys :req-un [::type ::path]
+                         :opt-un [::value]))
+(s/def ::commands (s/coll-of ::command :kind vector? :into []))
+
 (s/def ::delta
-  (s/keys :opt-un [::removed ::added ::updated ::reset]))
+  (s/keys :opt-un [::removed ::added ::updated ::reset ::commands]))
 
 (s/def ::context-update (s/merge ::messages/request
                                  (s/keys :req-un [::context_id ::delta])))

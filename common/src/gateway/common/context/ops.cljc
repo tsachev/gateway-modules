@@ -21,7 +21,8 @@
             [gateway.common.context.spec.requests :as request-spec]
             [gateway.state.spec.state :as state-spec]
 
-            [taoensso.timbre :as timbre]))
+            [taoensso.timbre :as timbre]
+            [gateway.common.utilities :as util]))
 
 (defn should-update?
   "Checks if the request should be applied on an existing context"
@@ -147,7 +148,7 @@
               (state-> (update* state
                                 context
                                 peer_id
-                                (reduce-kv #(assoc %1 (keyword %2) %3) {} delta)
+                                (util/keywordize delta)
                                 (:version request)))
               [state nil]))
           (do
@@ -173,7 +174,7 @@
         (state-> (update* state
                           context
                           peer_id
-                          (reduce-kv #(assoc %1 (keyword %2) %3) {} delta)
+                          (util/keywordize delta)
                           version)
                  ((fn [_] [_ [(m/success domain-uri
                                          source
@@ -188,7 +189,7 @@
         [state [(m/error domain-uri
                          source
                          request_id
-                       peer_id
+                         peer_id
                          (ex->Reason e (constants/failure domain-uri)))]]))))
 
 (>defn update-ctx
@@ -219,7 +220,7 @@
         ctx (cond-> (assoc (state/->ctx creator
                                         name
                                         data
-                                        lifetime                                                                                   
+                                        lifetime
                                         read_permissions
                                         write_permissions
                                         ctx-id
