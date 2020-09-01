@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/bus-domain "3.0.10-SNAPSHOT"
+(defproject com.tick42.gateway/bus-domain "3.0.10"
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[com.tick42.gateway/common :version]
