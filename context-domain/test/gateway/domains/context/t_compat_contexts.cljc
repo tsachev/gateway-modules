@@ -198,7 +198,7 @@
                             peer-id-2
                             (list {:description ""
                                    :uri         "context"
-                                   :version     1})
+                                   :version     2})
                             resolved-identity
                             nil)
               (msgs/context-added source-2 peer-id-2 peer-id-1 context-id context-name)

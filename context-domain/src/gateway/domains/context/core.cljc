@@ -265,7 +265,7 @@
 
   (info [this] {:uri         constants/context-domain-uri
                 :description ""
-                :version     1})
+                :version     2})
   (init [this state] state)
   (destroy [this state] state)
 
