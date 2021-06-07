@@ -325,7 +325,48 @@
                                (msg/activity-joined source
                                                     snoop-id
                                                     helper-1
-                                                    activity-id)]))))))))
+                                                    activity-id)])
+              (testing "another helper can enter with the same token and join the activity"
+                (let [helper-1-token (get-in helper-1-m [:body :gateway_token])
+                      helper-1-identity (gen-identity)
+
+                      [helper-created-s messages] (-> helper-ready-s
+                                                      (handle-hello source
+                                                                    {:type           :hello
+                                                                     :request_id     "1"
+                                                                     :identity       helper-1-identity
+                                                                     :authentication {"method" "gateway-token" "token" helper-1-token}}
+                                                                    environment))
+                      helper-1-id-r (get-in (first messages) [:body :peer_id])
+                      [helper-ready-s messages] (-> helper-created-s
+                                                    (join source {:request_id (request-id!)
+                                                                  :peer_id    helper-1-id-r
+                                                                  :identity   helper-1-identity})
+                                                    (first)
+                                                    (ready source {:peer_id helper-1-id-r}))
+
+                      activity (state/activity helper-ready-s activity-id)
+                      helper-1-r (peers/by-id helper-ready-s helper-1-id-r :activity-domain)]
+                  (just? messages [(msg/joined-activity helper-ready-s
+                                                        source
+                                                        helper-1-r
+                                                        activity
+                                                        {:context-override "context-override"})
+                                   (msg/activity-joined source
+                                                        owner-id
+                                                        helper-1-r
+                                                        activity-id)
+                                   (msg/activity-joined source
+                                                        snoop-id
+                                                        helper-1-r
+                                                        activity-id)
+                                   (msg/activity-joined source
+                                                        helper-1-id
+                                                        helper-1-r
+                                                        activity-id)])))
+
+              )
+            ))))))
 
 (deftest test-create-activity-type-override
   (let [source (ch->src "source")

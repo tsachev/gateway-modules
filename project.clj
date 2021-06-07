@@ -32,15 +32,15 @@
                                                           :password :env/CLOJARS_PASS
                                                           :signing  {:gpg-key "5771E8CF02241B72"}}]]}
 
-            :versions  {org.clojure/clojure                    "1.10.1"
+            :versions  {org.clojure/clojure                    "1.10.3"
                         com.taoensso/timbre                    "4.10.0"
-                        org.clojure/core.async                 "1.0.567"
-                        org.clojure/tools.reader               "1.3.2"
+                        org.clojure/core.async                 "1.3.618"
+                        org.clojure/tools.reader               "1.3.4"
                         instaparse                             "1.4.10"
                         cheshire                               "5.8.1"
                         com.github.ben-manes.caffeine/caffeine "2.8.0"
-                        funcool/promesa                        "5.1.0"
-                        com.cognitect/transit-clj              "0.8.313"
+                        funcool/promesa                        "6.0.2"
+                        com.cognitect/transit-clj              "0.8.319"
                         gnl/ghostwheel                         "0.3.9"}}
 
   :packaging "pom"
