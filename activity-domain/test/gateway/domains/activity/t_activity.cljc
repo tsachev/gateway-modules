@@ -128,14 +128,6 @@
       (message-type? helper-1-m :peer-requested)
       (message-type? helper-2-m :peer-requested)
 
-      (testing "tokens have a proper ttl set"
-        (let [helper-1-token (-> (get-in helper-1-m [:body :gateway_token])
-                                 (tokens/->token (:signature-key state-activity-requested)))
-              helper-2-token (-> (get-in helper-2-m [:body :gateway_token])
-                                 (tokens/->token (:signature-key state-activity-requested)))
-              owner-token (-> (get-in owner-m [:body :gateway_token])
-                              (tokens/->token (:signature-key state-activity-requested)))]))
-
       (testing "the configuration overrides have been applied in the peer request message"
         (let [merged-config (merge default-activity-config
                                    {:factory-config-key "factory-config-value"}
