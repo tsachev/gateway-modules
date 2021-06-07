@@ -226,27 +226,27 @@
     (factories/create state source request)))
 
 (defmethod handle-request :destroy-peer
-  [state source request]
+  [state source request _]
   (destroy-peer state source request))
 
 (defmethod handle-request :error
-  [state source request]
+  [state source request _]
   (handle-error state source request))
 
 (defmethod handle-request :reload
-  [state source request]
+  [state source request _]
   (activities/reload state source request))
 
 (defmethod handle-request :update-context
-  [state source request]
+  [state source request _]
   (contexts/update-ctx state source request))
 
 (defmethod handle-request ::commands/source-removed
-  [state source request]
+  [state source request _]
   (source-removed state source request))
 
 (defmethod handle-request :default
-  [state source body]
+  [state source body _]
   (timbre/error "Unhandled message" body)
   [state [(msg/error source
                      (:request_id body -1)
