@@ -24,6 +24,7 @@
             [gateway.common.peer-identity :as peer-identity]
             #?(:cljs [gateway.common.utilities :refer-macros [state->]])
             [gateway.common.commands :as commands]
+            [gateway.common.configuration :as configuration]
 
             [clojure.walk :refer [keywordize-keys]]
             [promesa.core :as p]
@@ -393,13 +394,6 @@
   [state source request _ _ _]
   (source-removed state source request))
 
-(defn- token-ttl
-  [configuration]
-  (let [ttl (* (get-in configuration [:authentication :token-ttl] 0) 1000)]
-    (if (pos? ttl)
-      ttl
-      tokens/*ttl*)))
-
 (defmethod handle-request :create-token
   [state source {:keys [request_id peer_id]} _ configuration _]
   (let [peer (peers/by-id* state peer_id)]
@@ -407,7 +401,7 @@
                      source
                      request_id
                      peer_id
-                     (with-redefs [tokens/*ttl* (token-ttl configuration)]
+                     (with-redefs [tokens/*ttl* (configuration/token-ttl configuration)]
                        (tokens/for-authentication state
                                                   (:identity peer))))]]))
 

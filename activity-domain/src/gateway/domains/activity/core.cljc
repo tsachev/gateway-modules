@@ -17,7 +17,9 @@
     [taoensso.timbre :as timbre]
     [gateway.domain :refer [Domain] :as domain]
     [gateway.common.messages :as m]
-    [gateway.common.commands :as commands]))
+    [gateway.common.commands :as commands]
+    [gateway.common.tokens :as tokens]
+    [gateway.common.configuration :as configuration]))
 
 (defn handle-error
   [state source request]
@@ -141,18 +143,18 @@
       (factories/peer-ready state peer))))
 
 
-(defmulti handle-request (fn [state source request] (:type request)))
+(defmulti handle-request (fn [state source request gateway-configuration] (:type request)))
 
 (defmethod handle-request ::domain/join
-  [state source request]
+  [state source request _]
   (join state source request))
 
 (defmethod handle-request ::domain/leave
-  [state source request]
+  [state source request _]
   (leave state source request))
 
 (defmethod handle-request :ready
-  [state source request]
+  [state source request _]
   (ready state source request))
 
 (defn- keywordize-type
@@ -169,7 +171,7 @@
                     keywordize-type)) types))
 
 (defmethod handle-request :add-types
-  [state source request]
+  [state source request _]
   (let [{:keys [request_id peer_id types]} request]
     (activities/add-types state
                           source
@@ -178,48 +180,50 @@
                           (keywordize-types types))))
 
 (defmethod handle-request :remove-types
-  [state source request]
+  [state source request _]
   (activities/remove-types state source request))
 
 (defmethod handle-request :create
-  [state source request]
-  (activities/create-activity state
-                              source
-                              (cond-> (dissoc request :configuration)
-                                      (:types_override request) (update :types_override (comp keywordize-type util/keywordize)))
-                              (map util/keywordize (:configuration request))))
+  [state source request gateway-configuration]
+  (with-redefs [tokens/*ttl* (configuration/token-ttl gateway-configuration)]
+    (activities/create-activity state
+                                source
+                                (cond-> (dissoc request :configuration)
+                                        (:types_override request) (update :types_override (comp keywordize-type util/keywordize)))
+                                (map util/keywordize (:configuration request)))))
 
 (defmethod handle-request :destroy
-  [state source request]
+  [state source request _]
   (activities/destroy-activity state source request))
 
 (defmethod handle-request :subscribe
-  [state source request]
+  [state source request _]
   (activities/subscribe state source request))
 
 (defmethod handle-request :unsubscribe
-  [state source request]
+  [state source request _]
   (activities/unsubscribe state source request))
 
 (defmethod handle-request :join-activity
-  [state source request]
+  [state source request _]
   (activities/join-activity state source request))
 
 (defmethod handle-request :leave-activity
-  [state source request]
+  [state source request _]
   (activities/leave-activity* state source request))
 
 (defmethod handle-request :add-peer-factories
-  [state source request]
+  [state source request _]
   (factories/add state source request))
 
 (defmethod handle-request :remove-peer-factories
-  [state source request]
+  [state source request _]
   (factories/remove-factories state source request))
 
 (defmethod handle-request :create-peer
-  [state source request]
-  (factories/create state source request))
+  [state source request gateway-configuration]
+  (with-redefs [tokens/*ttl* (configuration/token-ttl gateway-configuration)]
+    (factories/create state source request)))
 
 (defmethod handle-request :destroy-peer
   [state source request]
@@ -250,7 +254,7 @@
                      (reason constants/activity-unhandled-message
                              (str "Unhandled message " body)))]])
 
-(deftype ActivityDomain []
+(deftype ActivityDomain [gateway-configuration]
   Domain
 
   (info [this] {:uri         constants/activity-domain-uri
@@ -264,7 +268,7 @@
     (let [{:keys [source body]} msg
           type (:type body)]
       (try
-        (handle-request state source body)
+        (handle-request state source body gateway-configuration)
         (catch #?(:clj  Exception
                   :cljs :default) e
           (when-not (ex-data e) (timbre/error e "Error handling request" msg))
@@ -276,4 +280,8 @@
 
   (state->messages [this state]))
 
-(defn activity-domain [] (->ActivityDomain))
+(defn activity-domain
+  ([]
+   (activity-domain nil))
+  ([gateway-configuration]
+   (->ActivityDomain gateway-configuration)))

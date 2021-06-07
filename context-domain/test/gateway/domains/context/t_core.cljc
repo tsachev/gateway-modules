@@ -592,6 +592,43 @@
                                   :type :subscribe-context
                                   :name context-name))])))
 
+  (testing "contexts subscriptions are governed by read permissions"
+    (let [
+          [id1 id2] (repeatedly 2 gen-identity)
+          [peer-id-1 peer-id-2] (repeatedly 2 peer-id!)
+
+          source (ch->src "source")
+          source-2 (ch->src "source-2")
+          request-id (request-id!)
+          context-name "my context"
+
+          create-rq {:domain            constants/context-domain-uri
+                     :request_id        request-id
+                     :peer_id           peer-id-1
+                     :name              context-name
+                     :data              {}
+                     :lifetime          "ownership"
+                     :read_permissions  "#secret == $secret"
+                     :write_permissions nil}
+          [state msgs] (-> (new-state)
+                           (create-join source {:request_id request-id :peer_id peer-id-1 :identity (assoc id1 :secret "buhal")})
+                           (first)
+                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity id2})
+                           (first)
+                           (ctx/create source create-rq))
+          context-id (context-id :context-created msgs)
+          subscribe-rq {:domain     constants/context-domain-uri
+                        :request_id request-id :peer_id peer-id-2 :context_id context-id}
+          msgs (-> state
+                   (ctx/subscribe source-2 subscribe-rq)
+                   (second))]
+      (just? msgs [(m/error constants/context-domain-uri
+                            source-2
+                            request-id
+                            peer-id-2
+                            (reason (cc/context-not-authorized constants/context-domain-uri)
+                                    "Not authorized to read context"))])))
+
   (testing "unsubscribing from a context stops all evens from it"
     (let [
           [id1 id2] (repeatedly 2 gen-identity)
@@ -709,6 +746,50 @@
                                   :type :update-context
                                   :name context-name
                                   :version (msgs->ctx-version msgs)))])))
+
+  (testing "updating a context is governed by write permissions"
+    (let [
+          [id1 id2] (repeatedly 2 gen-identity)
+          [peer-id-1 peer-id-2] (repeatedly 2 peer-id!)
+
+          source (ch->src "source")
+          source-2 (ch->src "source-2")
+          request-id (request-id!)
+          context-name "my context"
+
+          create-rq {:domain            constants/context-domain-uri
+                     :request_id        request-id
+                     :peer_id           peer-id-1
+                     :name              context-name
+                     :data              {}
+                     :lifetime          "ownership"
+                     :read_permissions  nil
+                     :write_permissions "$secret == #secret"}
+          [state msgs] (-> (new-state)
+                           (create-join source {:request_id request-id :peer_id peer-id-1 :identity (assoc id1 :secret "buhal")})
+                           (first)
+                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity id2})
+                           (first)
+                           (ctx/create source create-rq))
+
+          context-id (context-id :context-created msgs)
+          delta {:added {"k" 5}}
+          update-rq {:domain     constants/context-domain-uri
+                     :request_id request-id :peer_id peer-id-2 :context_id context-id
+                     :delta      delta}
+          msgs (-> state
+                   (ctx/subscribe source-2 {:domain     constants/context-domain-uri
+                                            :request_id request-id :peer_id peer-id-2 :context_id context-id})
+                   (first)
+                   (ctx/update-ctx source-2
+                                   update-rq)
+                   (second))]
+      (just? msgs [(m/error constants/context-domain-uri
+                            source-2
+                            request-id
+                            peer-id-2
+                            (reason (cc/context-not-authorized constants/context-domain-uri) "Not authorized to update context"))])))
+
   (testing "data can be deleted"
     (let [
           [id1 id2] (repeatedly 2 gen-identity)
@@ -932,37 +1013,37 @@
                  (state/context-by-id 1)
                  :data)))))
   (testing "set can create deeply nested properties"
-      (let [data {"prop" {"a" 1 "b" 2} "c" 3}
-            state {:contexts {1 {:id   1
-                                 :data data}}}
-            ctx (state/context-by-id state 1)]
-        (is (= {"prop" {"a" {"x" {"y" 42}} "b" 2} "c" 3}
-               (-> state
-                   (state/apply-delta ctx {:commands [{:type "set" :path "prop.a.x.y" :value 42}]} 1)
-                   (state/context-by-id 1)
-                   :data)))))
+    (let [data {"prop" {"a" 1 "b" 2} "c" 3}
+          state {:contexts {1 {:id   1
+                               :data data}}}
+          ctx (state/context-by-id state 1)]
+      (is (= {"prop" {"a" {"x" {"y" 42}} "b" 2} "c" 3}
+             (-> state
+                 (state/apply-delta ctx {:commands [{:type "set" :path "prop.a.x.y" :value 42}]} 1)
+                 (state/context-by-id 1)
+                 :data)))))
 
   (testing "remove doesnt recursively remove empty parents"
-      (let [data {"prop" {"a" 1} "c" 3}
-            state {:contexts {1 {:id   1
-                                 :data data}}}
-            ctx (state/context-by-id state 1)]
-        (is (= {"prop" {} "c" 3}
-               (-> state
-                   (state/apply-delta ctx {:commands [{:type "remove" :path "prop.a"}]} 1)
-                   (state/context-by-id 1)
-                   :data)))))
+    (let [data {"prop" {"a" 1} "c" 3}
+          state {:contexts {1 {:id   1
+                               :data data}}}
+          ctx (state/context-by-id state 1)]
+      (is (= {"prop" {} "c" 3}
+             (-> state
+                 (state/apply-delta ctx {:commands [{:type "remove" :path "prop.a"}]} 1)
+                 (state/context-by-id 1)
+                 :data)))))
 
   (testing "remove with empty path removes everything"
-        (let [data {"prop" {"a" 1} "c" 3}
-              state {:contexts {1 {:id   1
-                                   :data data}}}
-              ctx (state/context-by-id state 1)]
-          (is (= {}
-                 (-> state
-                     (state/apply-delta ctx {:commands [{:type "remove" :path ""}]} 1)
-                     (state/context-by-id 1)
-                     :data)))))
+    (let [data {"prop" {"a" 1} "c" 3}
+          state {:contexts {1 {:id   1
+                               :data data}}}
+          ctx (state/context-by-id state 1)]
+      (is (= {}
+             (-> state
+                 (state/apply-delta ctx {:commands [{:type "remove" :path ""}]} 1)
+                 (state/context-by-id 1)
+                 :data)))))
   )
 
 
