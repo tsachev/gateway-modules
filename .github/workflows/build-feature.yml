@@ -1,6 +1,9 @@
 name: Build Gateway Modules
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches:
+      - 'feature/**'
 
 jobs:
   build:
@@ -18,15 +21,12 @@ jobs:
           /usr/lib/gnupg2/gpg-preset-passphrase --preset --passphrase "$GPG_PASSPHRASE" 526FC4D3D61594955F85B9FA443E44B40A493933
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-#      - run: echo "test" | gpg --clear-sign
-#      - run: gpg --list-secret-keys
-#      - run: gpg --with-keygrip -k 5771E8CF02241B72
 
       - uses: actions/setup-java@v1
         with:
           java-version: '8'
 
-      - uses: DeLaGuardo/setup-clojure@2.0
+      - uses: DeLaGuardo/setup-clojure@3.5
         with:
           tools-deps: '1.10.1.483'
           lein: '2.9.1'
@@ -48,9 +48,3 @@ jobs:
 
       - name: Test
         run: lein modules test
-
-      - name: Publish
-        env:
-          CLOJARS_USER: ${{ secrets.CLOJARS_USER }}
-          CLOJARS_PASS: ${{ secrets.CLOJARS_PASS }}
-        run: lein modules deploy clojars
