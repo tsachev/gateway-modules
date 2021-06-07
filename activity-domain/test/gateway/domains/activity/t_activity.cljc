@@ -29,6 +29,7 @@
             [gateway.domains.activity.constants :as constants]
             [gateway.domains.activity.messages :as msg]
             [gateway.common.messages :as m]
+            [gateway.common.tokens :as tokens]
             [gateway.reason :refer [request->Reason reason]]))
 
 #?(:clj
@@ -89,7 +90,7 @@
                              (peers/ensure-peer-with-id source peer-id-1 identity-1 nil nil)
                              (first)
                              (core-state/join-domain peer-id-1 :activity-domain nil)
-                             (core/handle-request source activity-reg-r)
+                             (core/handle-request source activity-reg-r nil)
                              (first)
                              (factories/add source factory-reg-r)
                              (first)
@@ -102,7 +103,8 @@
                              (first))
 
         create-override-config {"will-override" "overriden"}
-        create-r {:request_id      (request-id!)
+        create-r {:type            :create
+                  :request_id      (request-id!)
                   :peer_id         peer-id-1
                   :activity_type   "activity-type-1"
                   :initial_context {:context-override "context-override"}
@@ -115,7 +117,7 @@
                                                                                {:configuration-override "config-override-3"})}]}
 
         [state-activity-requested peer-request-m] (-> state-with-types
-                                                      (activities/create-activity source create-r (:configuration create-r)))]
+                                                      (core/handle-request source create-r {:authentication {:token-ttl 123456}}))]
     (spec-valid? ::ss/state state-activity-requested)
     (is (= 4 (count peer-request-m)))
     (let [[initiated-m owner-m helper-1-m helper-2-m] peer-request-m
@@ -125,6 +127,14 @@
       (message-type? owner-m :peer-requested)
       (message-type? helper-1-m :peer-requested)
       (message-type? helper-2-m :peer-requested)
+
+      (testing "tokens have a proper ttl set"
+        (let [helper-1-token (-> (get-in helper-1-m [:body :gateway_token])
+                                 (tokens/->token (:signature-key state-activity-requested)))
+              helper-2-token (-> (get-in helper-2-m [:body :gateway_token])
+                                 (tokens/->token (:signature-key state-activity-requested)))
+              owner-token (-> (get-in owner-m [:body :gateway_token])
+                              (tokens/->token (:signature-key state-activity-requested)))]))
 
       (testing "the configuration overrides have been applied in the peer request message"
         (let [merged-config (merge default-activity-config
@@ -389,7 +399,7 @@
                              (peers/ensure-peer-with-id source peer-id-1 identity-1 nil nil)
                              (first)
                              (core-state/join-domain peer-id-1 :activity-domain nil)
-                             (core/handle-request source activity-reg-r)
+                             (core/handle-request source activity-reg-r nil)
                              (first)
                              (factories/add source factory-reg-r)
                              (first)
@@ -450,7 +460,7 @@
                                                         "configuration" default-activity-config}
                                         "helper_types" [{"type"          "peer-type-5"
                                                          "configuration" default-activity-config}]})
-            [state-activity-requested peer-request-m] (core/handle-request state-with-types source create-r)]
+            [state-activity-requested peer-request-m] (core/handle-request state-with-types source create-r nil)]
         (spec-valid? ::ss/state state-activity-requested)
         (is (= 3 (count peer-request-m)))
         (let [[initiated-m owner-m helper-1-m] peer-request-m
@@ -501,7 +511,7 @@
                              (peers/ensure-peer-with-id source peer-id-1 identity-1 nil nil)
                              (first)
                              (core-state/join-domain peer-id-1 :activity-domain nil)
-                             (core/handle-request source activity-reg-r)
+                             (core/handle-request source activity-reg-r nil)
                              (first)
                              (factories/add source factory-reg-r)
                              (first))
@@ -1071,13 +1081,15 @@
           [state messages] (-> activity-state
                                (factories/add source factory-reg-r)
                                (first)
-                               (core/handle-request source {:domain      constants/activity-domain-uri
-                                                            :type        :create-peer
-                                                            :peer_id     peer-id-1
-                                                            :peer_type   "peer-type-4"
-                                                            :peer_name   "peer-name-4"
-                                                            :activity_id activity-id
-                                                            :request_id  create-request-id}))
+                               (core/handle-request source
+                                                    {:domain      constants/activity-domain-uri
+                                                     :type        :create-peer
+                                                     :peer_id     peer-id-1
+                                                     :peer_type   "peer-type-4"
+                                                     :peer_name   "peer-name-4"
+                                                     :activity_id activity-id
+                                                     :request_id  create-request-id}
+                                                    nil))
           activity (state/activity state activity-id)]
       (is (= (count messages) 2))
       (let [[peer-request-m success-m] messages]
@@ -1158,7 +1170,7 @@
                              (peers/ensure-peer-with-id source peer-id-1 identity-1 nil nil)
                              (first)
                              (core-state/join-domain peer-id-1 :activity-domain nil)
-                             (core/handle-request source activity-reg-r)
+                             (core/handle-request source activity-reg-r nil)
                              (first)
                              (factories/add source factory-reg-r)
                              (first))
@@ -1179,7 +1191,7 @@
                                                       "testConfigFromRegisterActivityForJsonEditor2" "testConfigFromRegisterActivityJsonEditor2ValueOverride"}}]}
 
         [state-activity-requested peer-request-m] (-> state-with-types
-                                                      (core/handle-request source create-r))]
+                                                      (core/handle-request source create-r nil))]
 
     (spec-valid? ::ss/state state-activity-requested)
     (is (= 3 (count peer-request-m)))
@@ -1202,3 +1214,64 @@
                                                            "testConfigFromRegisterActivityForJsonEditor2"                     "testConfigFromRegisterActivityJsonEditor2ValueOverride"
                                                            "testConfigFromRegisterActivityForJsonEditor2-0.49041988856445484" "testConfigFromRegisterActivityValueForJsonEditor2-0.49041988856445484"
                                                            "type"                                                             "JsonEditor"}))))))
+
+
+(deftest test-create-activity-token-ttl-configuration
+  (let [source (ch->src "source")
+        empty-state (new-state)
+
+        peer-id-1 (peer-id!)
+        user "user 1"
+        identity-1 (assoc (gen-identity) :user user)
+
+        default-activity-config {"activity-config" "activity-config"}
+
+        activity-type-1 {:name            "activity-type-1"
+                         :owner_type      {"type"          "peer-type-1"
+                                           "name"          "owner-name"
+                                           "configuration" default-activity-config}
+                         :helper_types    [{"type"          "peer-type-2"
+                                            "name"          "named-helper"
+                                            "configuration" default-activity-config}
+                                           {"type"          "peer-type-3"
+                                            "configuration" default-activity-config}]
+                         :default_context {"activity-default-context" "activity-default-context"}}
+
+        activity-reg-r {:request_id (request-id!)
+                        :type       :add-types
+                        :peer_id    peer-id-1
+                        :types      [activity-type-1]}
+
+        factory-reg-r {:request_id 1
+                       :peer_id    peer-id-1
+                       :factories  [{:id            1
+                                     :peer_type     "peer-type-1"
+                                     :configuration {:factory-config-key "factory-config-value"}}
+                                    {:id            2
+                                     :peer_type     "peer-type-2"
+                                     :configuration {:factory-config-key "factory-config-value"}}
+                                    {:id            3
+                                     :peer_type     "peer-type-3"
+                                     :configuration {:factory-config-key "factory-config-value"}}]}
+
+        state-with-types (-> empty-state
+                             (peers/ensure-peer-with-id source peer-id-1 identity-1 nil nil)
+                             (first)
+                             (core-state/join-domain peer-id-1 :activity-domain nil)
+                             (core/handle-request source activity-reg-r nil)
+                             (first)
+                             (factories/add source factory-reg-r)
+                             (first))
+        create-r {:type            :create
+                  :request_id      (request-id!)
+                  :peer_id         peer-id-1
+                  :activity_type   "activity-type-1"
+                  :initial_context {:context-override "context-override"}}
+
+        ttl 123456]
+
+    (with-redefs [tokens/for-request (fn [_ _ _] (is (= tokens/*ttl* (* ttl 1000))))]
+      (-> state-with-types
+          (core/handle-request source create-r {:authentication {:token-ttl ttl}})))))
+
+

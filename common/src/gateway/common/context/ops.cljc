@@ -169,7 +169,7 @@
             context (state/context-by-id* state context_id)
             version (state/next-version context)]
         (when-not (can-write? context peer)
-          (throw-reason domain-uri "Not authorized to update context"))
+          (throw-reason (constants/context-not-authorized domain-uri) "Not authorized to update context"))
 
         (state-> (update* state
                           context
