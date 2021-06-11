@@ -8,6 +8,8 @@
     [gateway.domains.agm.messages :as msg]
     [gateway.domains.agm.calls :as calls]
     [gateway.domains.agm.subscriptions :as subs]
+    [gateway.common.action-logger :refer [log-action]]
+    #?(:cljs [gateway.common.action-logger :refer-macros [log-action]])
     [gateway.restrictions :as rst]
     [gateway.address :refer [peer->address]]
 
@@ -82,6 +84,7 @@
 (defn- join*
   [state source peer-id peer-identity restrictions]
   (let [parsed-restrictions (rst/parse restrictions)]
+    (log-action "agm" "peer" peer-id "joins with identity" peer-identity)
     (-> state
         (state/join-domain peer-id :agm-domain parsed-restrictions)
         (announce-peer source peer-id))))
@@ -158,6 +161,7 @@
                                                                (detach-peer peer from-id reason))))
                                         (subs/cancel-subscriptions state peer reason)
                                         (peers/visible-peers state :agm-domain peer))]
+    (log-action "agm" "peer" peer-id "leaves agm domain")
     [(state/leave-domain new-state peer-id :agm-domain) messages]))
 
 (defn- remote-leave
