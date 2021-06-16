@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/context-domain "3.0.11-SNAPSHOT"
+(defproject com.tick42.gateway/context-domain "3.0.11"
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[com.tick42.gateway/common :version]
