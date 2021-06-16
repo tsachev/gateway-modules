@@ -43,6 +43,18 @@
                         com.cognitect/transit-clj              "0.8.319"
                         gnl/ghostwheel                         "0.3.9"}}
 
+  :release-tasks [["vcs" "assert-committed"]
+                  ["change" "version" "leiningen.release/bump-version" "release"]
+                  ["modules" "change" "version" "leiningen.release/bump-version" "release"]
+                  ["vcs" "commit"]
+                  ["vcs" "tag" "--no-sign"]
+                  ["vcs" "push"]
+                  ["change" "version" "leiningen.release/bump-version"]
+                  ["modules" "change" "version" "leiningen.release/bump-version"]
+                  ["vcs" "commit"]
+                  ["vcs" "push"]
+				  ]	
+
   :packaging "pom"
   :pom-addition [:modules
                  [:module "auth"]
