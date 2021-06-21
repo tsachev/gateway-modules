@@ -7,6 +7,8 @@
             [gateway.domains.agm.messages :as msg]
             [gateway.domains.agm.spec.requests :as request-spec]
             [gateway.domains.agm.utilities :refer [validate*]]
+            [gateway.common.action-logger :refer [log-action]]
+            #?(:cljs [gateway.common.action-logger :refer-macros [log-action]])
             [gateway.id-generators :as ids]
             [gateway.common.messages :as m :refer [error success]]
             [gateway.reason :refer [reason request->Reason]]
@@ -52,6 +54,7 @@
 (defn- call*
   [state request invocation-id callee caller]
   (let [{:keys [request_id peer_id server_id method_id]} request]
+    (log-action "agm" "peer" peer_id "calls method" method_id "on" server_id "using request" request_id)
     (let [caller (assoc-in caller
                            [:agm-domain :calls request_id]
                            {:callee server_id :method_id method_id :invocation_id invocation-id})]
@@ -146,6 +149,7 @@
                                method
                                true
                                (:result success))
+              (log-action "agm" "yield success to" caller-id "for request" request-id)
               [state [(msg/result (:source caller)
                                   request-id
                                   caller-id
@@ -157,7 +161,7 @@
                                method
                                false
                                (select-keys failure [:reason :reason_uri]))
-
+              (log-action "agm" "yield error to" caller-id "for request" request-id)
               [state [(error constants/agm-domain-uri
                              (:source caller)
                              request-id

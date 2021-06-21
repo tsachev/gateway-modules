@@ -22,7 +22,9 @@
     [gateway.state.spec.common :as common-spec]
     [gateway.domain :as domain]
     [gateway.domains.agm.spec.register :as register-spec]
-    [gateway.domains.agm.spec.unregister :as unregister-spec]))
+    [gateway.domains.agm.spec.unregister :as unregister-spec]
+    [gateway.common.action-logger :refer [log-action]]
+    #?(:cljs [gateway.common.action-logger :refer-macros [log-action]])))
 
 
 (defn- method->map
@@ -115,6 +117,7 @@
                                                                                                methods))))
                                           [new-state []]
                                           (peers/visible-peers state :agm-domain updated-peer))]
+      (log-action "agm" "peer" peer_id "un-registers methods" methods)
       [new-state messages])))
 
 (defn- remote-unregister
@@ -194,7 +197,7 @@
                                       provider-id
                                       provider)
         ]
-
+    (log-action "agm" "peer" provider-id "registers methods" methods)
     ;; and register them with all eligible consumers
     (reduce (fn [agg consumer]
               (state-> agg

@@ -6,6 +6,9 @@
             [gateway.domains.agm.messages :as msg]
             [gateway.domains.agm.utilities :refer [validate*]]
 
+            [gateway.common.action-logger :refer [log-action]]
+            #?(:cljs [gateway.common.action-logger :refer-macros [log-action]])
+
             #?(:clj  [gateway.metrics.features :as features]
                :cljs [gateway.metrics.features :refer-macros [subscribe! event! unsubscribe!] :as features])
 
@@ -168,6 +171,7 @@
                                {:server server_id :method_id method_id :request_id request_id}))
           callee (peers/by-id* state server_id :agm-domain)]
       (validate* caller callee request)
+      (log-action "agm" "peer" peer_id "subscribes for method" method_id "on" server_id "with subscription" subscription-id "using request" request_id)
       (add-interest caller
                     (peers/set-peer state peer_id caller)
                     (assoc request :subscription_id subscription-id)))))
@@ -198,7 +202,7 @@
           subscription (get-in subscriber locator)
           request-id (:request_id subscription)
           sub-src (:source subscriber)]
-
+      (log-action "agm" "peer" subscriber-id "dropped/rejected subscription" subscription-id "for request" request-id "error?:" error?)
       [(peers/set-peer state
                        subscriber-id
                        (dissoc-in subscriber locator))
@@ -219,7 +223,7 @@
         state (peers/set-peer state subscriber-id
                               (assoc-in subscriber [:agm-domain :subscriptions subscription-id :stream] stream-id))
         sub-source (:source subscriber)]
-
+    (log-action "agm" "peer" subscriber-id "is accepted subscription" subscription-id "for request" request-id)
     (if (peers/local-peer? subscriber)
       [state [(msg/subscribed sub-source request-id subscriber-id subscription-id)]]
       [state [(m/unicast (peer->address (ids/node-id (:ids state)) (:peer_id accept-rq))
@@ -360,6 +364,7 @@
   (let [subscriber (peers/by-id* state subscriber-id :agm-domain)
         sub-loc [:agm-domain :subscriptions subscription-id]
         {server-id :server} (get-in subscriber sub-loc)]
+    (log-action "agm" "peer" subscriber-id "unsubscribes subscription" subscription-id "using request" request-id)
     (if server-id
       (let [state (peers/set-peer state
                                   subscriber-id
