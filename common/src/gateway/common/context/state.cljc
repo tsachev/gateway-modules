@@ -177,7 +177,8 @@
              :write_permissions write_permissions
              :members           #{}
              :version           version
-             :name              name}
+             :name              name
+             :creator           (:id creator)}
             options (assoc :options options))))
 
 (defn next-version [context]

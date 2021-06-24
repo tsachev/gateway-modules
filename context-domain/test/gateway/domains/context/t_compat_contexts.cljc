@@ -246,8 +246,7 @@
                          (authenticated source-3 {:request_id request-id :remote-identity id2})
                          (first)
                          (g/create source create-rq))
-        context-id (context-id :context-created msgs)
-        context (get-in state [:contexts context-id])]
+        context-id (context-id :context-created msgs)]
     (just? [(msgs/context-added source peer-id-1 peer-id-1 context-id context-name)
             (msgs/context-added source-2 peer-id-2 peer-id-1 context-id context-name)
             (msgs/context-created source request-id peer-id-1 context-id)
@@ -258,6 +257,96 @@
                            :type :create-context
                            :version (msgs->ctx-version msgs)))]
            msgs)))
+
+
+(deftest context-restricted-string-match-announcement
+  (let [
+        id1 (assoc (gen-identity) :user "user" :application "a1")
+        id2 (assoc (gen-identity) :user "user" :application "a1")
+        id3 (assoc (gen-identity) :user "user" :application "a2")
+
+        source (ch->src "source")
+        source-2 (ch->src "source-2")
+        source-3 (ch->src "source-3")
+        request-id (request-id!)
+        context-name "my context"
+
+        [state msgs] (-> (empty-state)
+                         (authenticated source {:request_id request-id :remote-identity id1}))
+        peer-id-1 (get-in (first msgs) [:body :peer_id])
+
+        [state msgs] (-> state
+                         (authenticated source-2 {:request_id request-id :remote-identity id2}))
+        peer-id-2 (get-in (first msgs) [:body :peer_id])
+
+        create-rq {:domain            c/global-domain-uri
+                   :request_id        request-id
+                   :peer_id           peer-id-1
+                   :name              context-name
+                   :data              {}
+                   :lifetime          "ownership"
+                   :read_permissions  "$application == 'a1'"
+                   :write_permissions nil}
+        [state msgs] (-> state
+                         (authenticated source-3 {:request_id request-id :remote-identity id2})
+                         (first)
+                         (g/create source create-rq))
+        context-id (context-id :context-created msgs)]
+    (just? [(msgs/context-added source peer-id-1 peer-id-1 context-id context-name)
+            (msgs/context-added source-2 peer-id-2 peer-id-1 context-id context-name)
+            (msgs/context-created source request-id peer-id-1 context-id)
+            (m/broadcast {:type    :peer
+                          :peer-id peer-id-1
+                          :node    node-id}
+                         (assoc create-rq
+                           :type :create-context
+                           :version (msgs->ctx-version msgs)))]
+           msgs)))
+
+(deftest context-creator-always-matches
+  (let [
+        id1 (assoc (gen-identity) :user "user" :application "a3")
+        id2 (assoc (gen-identity) :user "user" :application "a1")
+        id3 (assoc (gen-identity) :user "user" :application "a2")
+
+        source (ch->src "source")
+        source-2 (ch->src "source-2")
+        source-3 (ch->src "source-3")
+        request-id (request-id!)
+        context-name "my context"
+
+        [state msgs] (-> (empty-state)
+                         (authenticated source {:request_id request-id :remote-identity id1}))
+        peer-id-1 (get-in (first msgs) [:body :peer_id])
+
+        [state msgs] (-> state
+                         (authenticated source-2 {:request_id request-id :remote-identity id2}))
+        peer-id-2 (get-in (first msgs) [:body :peer_id])
+
+        create-rq {:domain            c/global-domain-uri
+                   :request_id        request-id
+                   :peer_id           peer-id-1
+                   :name              context-name
+                   :data              {}
+                   :lifetime          "ownership"
+                   :read_permissions  "$application == 'a1'"
+                   :write_permissions nil}
+        [state msgs] (-> state
+                         (authenticated source-3 {:request_id request-id :remote-identity id2})
+                         (first)
+                         (g/create source create-rq))
+        context-id (context-id :context-created msgs)]
+    (just? [(msgs/context-added source peer-id-1 peer-id-1 context-id context-name)
+            (msgs/context-added source-2 peer-id-2 peer-id-1 context-id context-name)
+            (msgs/context-created source request-id peer-id-1 context-id)
+            (m/broadcast {:type    :peer
+                          :peer-id peer-id-1
+                          :node    node-id}
+                         (assoc create-rq
+                           :type :create-context
+                           :version (msgs->ctx-version msgs)))]
+           msgs)))
+
 
 (deftest context-destroyed-when-owner-leaves
   (let [

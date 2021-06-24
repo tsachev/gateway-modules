@@ -61,18 +61,19 @@
 
   [domain-uri context peer]
   (let [lifetime (:lifetime context)
-        result (if (= lifetime :activity)
+        result (or (= (:id peer) (:creator context))
+                   (if (= lifetime :activity)
 
-                 ;; only members can write to an activity
-                 (contains? (:members context) (:id peer))
+                     ;; only members can write to an activity
+                     (contains? (:members context) (:id peer))
 
-                 ;; normal context - permissions apply
-                 (let [owned (= (:lifetime context) :ownership)]
-                   (or
-                     (and owned (= (:owner context) (:id peer)))
-                     (and (not owned) (restrictions/check? (:write_permissions context)
-                                                           (:identity context)
-                                                           (:identity peer))))))]
+                     ;; normal context - permissions apply
+                     (let [owned (= (:lifetime context) :ownership)]
+                       (or
+                         (and owned (= (:owner context) (:id peer)))
+                         (and (not owned) (restrictions/check? (:write_permissions context)
+                                                               (:identity context)
+                                                               (:identity peer)))))))]
     (when-not result
       (throw-reason (constants/context-not-authorized domain-uri) "Not authorized to update context"))))
 
@@ -91,9 +92,11 @@
   "Checks if a peer matches the restrictions of a context."
 
   [context peer]
-  (restrictions/check? (:read_permissions context)
-                       (:identity context)
-                       (:identity peer)))
+  (or (= (:id peer) (:creator context))
+      (= (:id peer) (:owner context))
+      (restrictions/check? (:read_permissions context)
+                           (:identity context)
+                           (:identity peer))))
 
 
 (defn can-announce?
