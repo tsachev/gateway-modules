@@ -42,28 +42,8 @@
 
   [context peer]
   (let [lifetime (:lifetime context)
-        result (if (= lifetime :activity)
-
-                 ;; only members can write to an activity
-                 (contains? (:members context) (:id peer))
-
-                 ;; normal context - permissions apply
-                 (let [owned (= (:lifetime context) :ownership)]
-                   (or
-                     (and owned (= (:owner context) (:id peer)))
-                     (and (not owned) (restrictions/check? (:write_permissions context)
-                                                           (:identity context)
-                                                           (:identity peer))))))]
-    result))
-
-(defn- check-can-write*
-  "Checks if a peer can write to/destroy a context"
-
-  [domain-uri context peer]
-  (let [lifetime (:lifetime context)
         result (or (= (:id peer) (:creator context))
                    (if (= lifetime :activity)
-
                      ;; only members can write to an activity
                      (contains? (:members context) (:id peer))
 
@@ -74,8 +54,14 @@
                          (and (not owned) (restrictions/check? (:write_permissions context)
                                                                (:identity context)
                                                                (:identity peer)))))))]
-    (when-not result
-      (throw-reason (constants/context-not-authorized domain-uri) "Not authorized to update context"))))
+    result))
+
+(defn- check-can-write*
+  "Checks if a peer can write to/destroy a context"
+
+  [domain-uri context peer]
+  (when-not (can-write? context peer)
+    (throw-reason (constants/context-not-authorized domain-uri) "Not authorized to update context")))
 
 (defn- check-can-destroy*
   "Checks whether a not a given peer can destroy a context"
