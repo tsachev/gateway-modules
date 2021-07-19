@@ -467,7 +467,7 @@
                        request-id
                        peer-id-2
                        (reason (cc/context-not-authorized constants/context-domain-uri)
-                               "Not authorized to update context"))]))))
+                               "Not authorized to destroy context"))]))))
 
 
 (deftest destroy-restricted-fail
@@ -507,7 +507,7 @@
                        request-id
                        peer-id-2
                        (reason (cc/context-not-authorized constants/context-domain-uri)
-                               "Not authorized to update context"))]))))
+                               "Not authorized to destroy context"))]))))
 
 (deftest destroy-restricted-success
   (let [
@@ -592,7 +592,7 @@
                                   :type :subscribe-context
                                   :name context-name))])))
 
-  (testing "contexts subscriptions are governed by read permissions"
+  (testing "having read permissions allows you to subscribe"
     (let [
           [id1 id2] (repeatedly 2 gen-identity)
           [peer-id-1 peer-id-2] (repeatedly 2 peer-id!)
@@ -613,7 +613,7 @@
           [state msgs] (-> (new-state)
                            (create-join source {:request_id request-id :peer_id peer-id-1 :identity (assoc id1 :secret "buhal")})
                            (first)
-                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity id2})
+                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity (assoc id2 :secret "buhal")})
                            (first)
                            (ctx/create source create-rq))
           context-id (context-id :context-created msgs)
@@ -622,12 +622,13 @@
           msgs (-> state
                    (ctx/subscribe source-2 subscribe-rq)
                    (second))]
-      (just? msgs [(m/error constants/context-domain-uri
-                            source-2
-                            request-id
-                            peer-id-2
-                            (reason (cc/context-not-authorized constants/context-domain-uri)
-                                    "Not authorized to read context"))])))
+      (just? msgs [(msg/subscribed-context source-2 request-id peer-id-2 context-id {})
+                   (m/broadcast {:type    :peer
+                                 :peer-id peer-id-2
+                                 :node    node-id}
+                                (assoc subscribe-rq
+                                  :type :subscribe-context
+                                  :name context-name))])))
 
   (testing "unsubscribing from a context stops all evens from it"
     (let [
@@ -789,6 +790,116 @@
                             request-id
                             peer-id-2
                             (reason (cc/context-not-authorized constants/context-domain-uri) "Not authorized to update context"))])))
+
+  (testing "not having permissions stops you from subscribing to a context"
+    (let [
+          [id1 id2] (repeatedly 2 gen-identity)
+          [peer-id-1 peer-id-2] (repeatedly 2 peer-id!)
+
+          source (ch->src "source")
+          source-2 (ch->src "source-2")
+          request-id (request-id!)
+          context-name "my context"
+
+          create-rq {:domain            constants/context-domain-uri
+                     :request_id        request-id
+                     :peer_id           peer-id-1
+                     :name              context-name
+                     :data              {}
+                     :lifetime          "ownership"
+                     :read_permissions  "$secret == '1'"
+                     :write_permissions "$secret == '2'"}
+          [state msgs] (-> (new-state)
+                           (create-join source {:request_id request-id :peer_id peer-id-1 :identity (assoc id1 :secret "2")})
+                           (first)
+                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity (assoc id2 :secret "3")})
+                           (first)
+                           (ctx/create source create-rq))
+
+          context-id (context-id :context-created msgs)
+          msgs (-> state
+                   (ctx/subscribe source-2 {:domain     constants/context-domain-uri
+                                            :request_id request-id :peer_id peer-id-2 :context_id context-id})
+                   (second))]
+      (just? msgs [(m/error constants/context-domain-uri
+                            source-2
+                            request-id
+                            peer-id-2
+                            (reason (cc/context-not-authorized constants/context-domain-uri) "Not authorized to read context"))])))
+
+  (testing "not having a permissions stops you from subscribing via create"
+    (let [
+          [id1 id2] (repeatedly 2 gen-identity)
+          [peer-id-1 peer-id-2] (repeatedly 2 peer-id!)
+
+          source (ch->src "source")
+          source-2 (ch->src "source-2")
+          request-id (request-id!)
+          context-name "my context"
+
+          create-rq {:domain            constants/context-domain-uri
+                     :request_id        request-id
+                     :peer_id           peer-id-1
+                     :name              context-name
+                     :data              {}
+                     :lifetime          "ownership"
+                     :read_permissions  "$secret == '1'"
+                     :write_permissions "$secret == '2'"}
+          [state msgs] (-> (new-state)
+                           (create-join source {:request_id request-id :peer_id peer-id-1 :identity (assoc id1 :secret "2")})
+                           (first)
+                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity (assoc id2 :secret "3")})
+                           (first)
+                           (ctx/create source create-rq))
+
+          context-id (context-id :context-created msgs)
+          msgs (-> state
+                   (ctx/create source-2 (assoc create-rq :peer_id peer-id-2))
+                   (second))]
+      (just? msgs [(m/error constants/context-domain-uri
+                            source-2
+                            request-id
+                            peer-id-2
+                            (reason (cc/context-not-authorized constants/context-domain-uri) "Not authorized to read context"))])))
+
+  (testing "having matching write permissions allows reading even if the read permissions dont match"
+    (let [
+          [id1 id2] (repeatedly 2 gen-identity)
+          [peer-id-1 peer-id-2] (repeatedly 2 peer-id!)
+
+          source (ch->src "source")
+          source-2 (ch->src "source-2")
+          request-id (request-id!)
+          context-name "my context"
+
+          create-rq {:domain            constants/context-domain-uri
+                     :request_id        request-id
+                     :peer_id           peer-id-1
+                     :name              context-name
+                     :data              {}
+                     :lifetime          "ownership"
+                     :read_permissions  "$secret == '1'"
+                     :write_permissions "$secret == '2'"}
+          [state msgs] (-> (new-state)
+                           (create-join source {:request_id request-id :peer_id peer-id-1 :identity (assoc id1 :secret "2")})
+                           (first)
+                           (create-join source-2 {:request_id request-id :peer_id peer-id-2 :identity (assoc id2 :secret "2")})
+                           (first)
+                           (ctx/create source create-rq))
+
+          context-id (context-id :context-created msgs)
+          subscribe-rq {:domain     constants/context-domain-uri
+                        :request_id request-id :peer_id peer-id-2 :context_id context-id}
+          msgs (-> state
+                   (ctx/subscribe source-2 subscribe-rq)
+                   (second))]
+      (just? msgs [(msg/subscribed-context source-2 request-id peer-id-2 context-id {})
+                   (m/broadcast {:type    :peer
+                                 :peer-id peer-id-2
+                                 :node    node-id}
+                                (assoc subscribe-rq
+                                  :type :subscribe-context
+                                  :name context-name))])))
 
   (testing "data can be deleted"
     (let [

@@ -483,7 +483,7 @@
                    source-2
                    request-id
                    peer-id-2
-                   (reason c/global-not-authorized "Not authorized to update context"))]))))
+                   (reason c/global-not-authorized "Not authorized to destroy context"))]))))
 
 
 (deftest destroy-restricted-fail
@@ -523,7 +523,7 @@
                    source-2
                    request-id
                    peer-id-2
-                   (reason c/global-not-authorized "Not authorized to update context"))]))))
+                   (reason c/global-not-authorized "Not authorized to destroy context"))]))))
 
 (deftest destroy-restricted-success
   (let [

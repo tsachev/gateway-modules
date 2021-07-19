@@ -59,7 +59,6 @@
                             (and (:write_permissions context) (restrictions/check? (:write_permissions context)
                                                                                    (:identity context)
                                                                                    (:identity peer)))))))]
-     (timbre/info "RESULT" result)
      result)))
 
 (defn- check-can-write*
