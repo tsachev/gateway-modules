@@ -45,7 +45,7 @@
 (defn check? [parsed-restriction own-context context]
   (if (seq parsed-restriction)
     (ipt/transform
-      {:and       (fn [lhs rhs] (= lhs rhs))
+      {:and       (fn [lhs rhs] (and lhs rhs))
        :or        (fn [lhs rhs] (or lhs rhs))
        :eq        =
        :neq       not=

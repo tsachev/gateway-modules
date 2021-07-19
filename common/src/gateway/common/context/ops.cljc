@@ -39,22 +39,28 @@
 
 (defn- can-write?
   "Checks if a peer can write to/destroy a context"
+  ([context peer]
+   (can-write? context peer false))
+  (
+   [context peer explicit?]
+   (let [lifetime (:lifetime context)
+         result (or (= (:id peer) (:creator context))
+                    (if (= lifetime :activity)
+                      ;; only members can write to an activity
+                      (contains? (:members context) (:id peer))
 
-  [context peer]
-  (let [lifetime (:lifetime context)
-        result (or (= (:id peer) (:creator context))
-                   (if (= lifetime :activity)
-                     ;; only members can write to an activity
-                     (contains? (:members context) (:id peer))
-
-                     ;; normal context - permissions apply
-                     (let [owned (= (:lifetime context) :ownership)]
-                       (or
-                         (and owned (= (:owner context) (:id peer)))
-                         (and (not owned) (restrictions/check? (:write_permissions context)
-                                                               (:identity context)
-                                                               (:identity peer)))))))]
-    result))
+                      ;; normal context - permissions apply
+                      (or (= (:id peer) (:creator context))
+                          (= (:id peer) (:owner context))
+                          (if (not explicit?)
+                            (restrictions/check? (:write_permissions context)
+                                                 (:identity context)
+                                                 (:identity peer))
+                            (and (:write_permissions context) (restrictions/check? (:write_permissions context)
+                                                                                   (:identity context)
+                                                                                   (:identity peer)))))))]
+     (timbre/info "RESULT" result)
+     result)))
 
 (defn- check-can-write*
   "Checks if a peer can write to/destroy a context"
@@ -71,8 +77,11 @@
     (throw-reason (constants/context-not-authorized domain-uri)
                   "Activity contexts cannot be explicitly destroyed"))
 
-  ;; the rest of the context can be destroyed by any peer that can write to them
-  (check-can-write* domain-uri context peer))
+  (let [owned (= (:lifetime context) :ownership)]
+    (when-not (or
+                (and owned (= (:owner context) (:id peer)))
+                (and (not owned) (can-write? context peer)))
+      (throw-reason (constants/context-not-authorized domain-uri) "Not authorized to destroy context"))))
 
 (defn- can-read?
   "Checks if a peer matches the restrictions of a context."
@@ -82,7 +91,8 @@
       (= (:id peer) (:owner context))
       (restrictions/check? (:read_permissions context)
                            (:identity context)
-                           (:identity peer))))
+                           (:identity peer))
+      (can-write? context peer true)))
 
 
 (defn can-announce?
@@ -324,7 +334,7 @@
 
           ;; the context already exists, we should either reset its image or ignore the request
           (do
-            (check-can-read* domain-uri existing-context peer_id)
+            (check-can-read* domain-uri existing-context peer)
             (if (should-update? request existing-context)
               (update* state
                        existing-context
@@ -355,7 +365,7 @@
 
           ;; the context already exists
           (do
-            (check-can-read* domain-uri existing-context peer_id)
+            (check-can-read* domain-uri existing-context peer)
             (subscribe* domain-uri state source request_id existing-context peer_id))
 
           ;; new context
