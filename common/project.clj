@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/common "3.0.13-SNAPSHOT"
+(defproject com.tick42.gateway/common "3.0.13"
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[instaparse "_"]
