@@ -169,8 +169,17 @@
     (let [caller (-> (peers/by-id* state peer_id :agm-domain)
                      (assoc-in [:agm-domain :subscriptions subscription-id]
                                {:server server_id :method_id method_id :request_id request_id}))
-          callee (peers/by-id* state server_id :agm-domain)]
+          callee (peers/by-id* state server_id :agm-domain)
+          large-msg (some-> (meta request) (:large-msg))]
       (validate* caller callee request)
+      (when large-msg
+        (timbre/warn "agm"
+                     "peer" (:identity caller)
+                     "subscribes for method" method_id
+                     "on server" (:identity callee)
+                     "with subscription" subscription-id
+                     "using request" request_id "with large payload" large-msg))
+
       (log-action "agm" "peer" peer_id "subscribes for method" method_id "on" server_id "with subscription" subscription-id "using request" request_id)
       (add-interest caller
                     (peers/set-peer state peer_id caller)
@@ -443,10 +452,18 @@
          stream-id :stream_id
          sqn       :sequence
          snapshot? :snapshot
-         data      :data} request]
+         data      :data} request
+        large-msg (some-> (meta request) (:large-msg))]
+
     (let [server (peers/by-id state server-id :agm-domain)
           destinations (get-in server [:agm-domain :streams stream-id])
           remotes (volatile! #{})]
+
+      (when large-msg
+        (timbre/warn "agm"
+                     "peer" (:identity server)
+                     "publishes data on stream" stream-id
+                     "with large payload" large-msg))
 
       [state (doall (->> destinations
                          (mapcat (fn [[subscriber-id subscriptions]]
@@ -482,10 +499,22 @@
          subscription-id :subscription_id
          sqn             :sequence
          snapshot?       :snapshot
-         data            :data} request]
+         data            :data} request
+        large-msg (some-> (meta request) (:large-msg))]
+
     (let [server (peers/by-id state server-id :agm-domain)
           subscriber-id (get-in server [:agm-domain :interests subscription-id :subscriber])
           subscriber (peers/by-id state subscriber-id)]
+
+      (when large-msg
+        (let [method-id (get-in server [:agm-domain :interests subscription-id :method_id])
+              method-name (get-in server [:agm-domain :methods server-id method-id :name])]
+          (timbre/warn "agm"
+                       "server" (:identity server)
+                       "posts data on method/subscription" method-name subscription-id
+                       "to peer" (:identity subscriber)
+                       "with large payload" large-msg)))
+
       (when-let [sub-src (:source subscriber)]
         [state [(if (peers/local-peer? subscriber)
                   (do

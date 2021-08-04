@@ -21,6 +21,9 @@
             [gateway.common.context.spec.requests :as request-spec]
             [gateway.state.spec.state :as state-spec]
 
+            [gateway.common.action-logger :refer [log-action]]
+            #?(:cljs [gateway.common.action-logger :refer-macros [log-action]])
+
             [taoensso.timbre :as timbre]
             [gateway.common.utilities :as util]))
 
@@ -234,6 +237,8 @@
   "Adds peer as a member of a context. Updates the state and generates messages."
 
   [domain-uri state sender request-id context peer-id]
+  (log-action "context" "peer" peer-id "subscribes for context" (:name context) "using request" request-id)
+
   (let [updated-state (state/add-context-member state context peer-id)]
     [updated-state [(msg/subscribed-context domain-uri sender request-id peer-id (:id context) (:data context))]]))
 
@@ -371,6 +376,9 @@
           (let [[new-state ctx] (->> request
                                      (preprocess domain-uri)
                                      (request->ctx state peer true))]
+
+            (log-action "context" "peer" peer_id "creates context" name "using request" request_id)
+
             [new-state (-> (broadcast-added new-state ctx peer)
                            (conj (msg/context-created domain-uri source request_id peer_id (:id ctx))
                                  (m/broadcast (peer->address (ids/node-id (:ids state)) peer_id)
@@ -407,6 +415,9 @@
   "Destroys a context. Returns an updated state and vector of messages to send"
 
   [domain-uri state context reason]
+
+  (log-action "context" "context" (:name context) "is destroyed" "with reason" reason)
+
   (let [ctx-id (:id context)
         members (:members context)]
     [(state/remove-context state ctx-id)
@@ -515,7 +526,7 @@
   [domain-uri state source request]
   (let [{:keys [request_id peer_id context_id]} request]
     (try
-      (let [peer (peers/by-id* state peer_id)
+      (let [_ (peers/by-id* state peer_id)
             context (state/context-by-id* state context_id)]
         (state-> (remove-peer-from-context domain-uri state peer_id context)
                  ((fn [_] [nil [(m/success domain-uri

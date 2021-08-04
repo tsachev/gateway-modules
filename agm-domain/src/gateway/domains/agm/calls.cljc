@@ -19,7 +19,9 @@
             #?(:clj  [gateway.metrics.features :as features]
                :cljs [gateway.metrics.features :refer-macros [invoke! yield!] :as features])
 
-            [ghostwheel.core :as g :refer [=> >defn]]))
+            [ghostwheel.core :as g :refer [=> >defn]]
+
+            [taoensso.timbre :as timbre]))
 
 ;;
 
@@ -53,7 +55,15 @@
 
 (defn- call*
   [state request invocation-id callee caller]
-  (let [{:keys [request_id peer_id server_id method_id]} request]
+  (let [{:keys [request_id peer_id server_id method_id]} request
+        large-msg (some-> (meta request) (:large-msg))
+        method (get-in callee [:agm-domain :methods server_id method_id])]
+    (when large-msg
+      (timbre/warn "agm"
+                   "peer" (:identity caller)
+                   "calls method" (:name method)
+                   "on" (:identity callee)
+                   "using request" request_id "with large payload" large-msg))
     (log-action "agm" "peer" peer_id "calls method" method_id "on" server_id "using request" request_id)
     (let [caller (assoc-in caller
                            [:agm-domain :calls request_id]
@@ -62,7 +72,7 @@
       (features/invoke! request_id
                         (:identity caller)
                         (:identity callee)
-                        (get-in callee [:agm-domain :methods server_id method_id])
+                        method
                         (:arguments_kv request))
 
       (invoke (peers/set-peer state peer_id caller)
@@ -139,7 +149,8 @@
             callee (peers/by-id state callee-id)
             method (get-in callee [:agm-domain :methods callee-id method-id])
             success (:success success-failure)
-            failure (:failure success-failure)]
+            failure (:failure success-failure)
+            large-msg (some-> (meta request) (:large-msg))]
         (if (peers/local-peer? caller)
           (if success
             (do
@@ -149,6 +160,13 @@
                                method
                                true
                                (:result success))
+              (when large-msg
+                (timbre/warn "agm"
+                             "method" (:name method)
+                             "on server" (:identity callee)
+                             "yield success to" (:identity caller)
+                             "for request" request-id "with large payload" large-msg))
+
               (log-action "agm" "yield success to" caller-id "for request" request-id)
               [state [(msg/result (:source caller)
                                   request-id
