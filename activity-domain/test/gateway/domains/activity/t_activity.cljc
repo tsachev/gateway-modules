@@ -1300,11 +1300,22 @@
                   :peer_id         peer-id-1
                   :activity_type   "activity-type-1"
                   :initial_context {:context-override "context-override"}}
+        peer-id-2 (peer-id!)
+        identity-2 (assoc (gen-identity) :user user)
+        reload-r {:type :reload
+                  :request_id      (request-id!)
+                  :peer_id         peer-id-2}
 
         ttl 123456]
 
     (with-redefs [tokens/for-request (fn [_ _ _] (is (= tokens/*ttl* (* ttl 1000))))]
       (-> state-with-types
-          (core/handle-request source create-r {:authentication {:token-ttl ttl}})))))
+          (core/handle-request source create-r {:authentication {:token-ttl ttl}})
+          (first)
+          (core-state/leave-domain peer-id-1 :activity-domain)
+          (peers/ensure-peer-with-id source peer-id-2 identity-2 nil nil)
+          (first)
+          (core-state/join-domain peer-id-2 :activity-domain nil)
+          (core/handle-request source reload-r {:authentication {:token-ttl ttl}})))))
 
 

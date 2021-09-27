@@ -234,8 +234,9 @@
   (handle-error state source request))
 
 (defmethod handle-request :reload
-  [state source request _]
-  (activities/reload state source request))
+  [state source request gateway-configuration]
+  (with-redefs [tokens/*ttl* (configuration/token-ttl gateway-configuration)]
+    (activities/reload state source request)))
 
 (defmethod handle-request :update-context
   [state source request _]
