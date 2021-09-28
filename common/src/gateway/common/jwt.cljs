@@ -76,7 +76,7 @@
   `:now` is an integer POSIX time and defaults to the current time.
   `:leeway` is an integer number of seconds and defaults to zero."
   [claims {:keys [max-age iss aud now leeway]
-           :or   {now (.getTime (js/Date.)) leeway 0}}]
+           :or   {now (quot (.getTime (js/Date.)) 1000) leeway 0}}]
 
   ;; Check the `:iss` claim.
   (when (and iss (let [iss-claim (:iss claims)]

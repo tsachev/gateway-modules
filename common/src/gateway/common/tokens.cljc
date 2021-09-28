@@ -13,7 +13,7 @@
    (jwt/sign (cond-> {:type             :gw-request
                       :impersonate-peer impersonate-identity
                       :gw-request       gw-request}
-                     exp (assoc :exp exp))
+                     exp (assoc :exp (quot exp 1000)))
              (:signature-key state)))
   (
    [state impersonate-identity gw-request]
@@ -24,7 +24,7 @@
    [state impersonate-identity exp]
    (jwt/sign (cond-> {:type :authentication
                       :user (:user impersonate-identity)}
-                     exp (assoc :exp exp))
+                     exp (assoc :exp (quot exp 1000)))
              (:signature-key state)))
   (
    [state impersonate-identity]
@@ -35,7 +35,7 @@
 (defn ->token
   (
    [signature-key token-str exp]
-   (let [t (-> (jwt/unsign token-str signature-key (when exp {:now exp}))
+   (let [t (-> (jwt/unsign token-str signature-key (when exp {:now (quot exp 1000)}))
                (update :type keyword)
                (update :impersonate-peer peer-identity/keywordize-id))]
      (if (= (:type t) :gw-request)

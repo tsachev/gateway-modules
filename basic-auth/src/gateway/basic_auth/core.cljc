@@ -19,14 +19,14 @@
 
   (-> (auth/authenticate-secret authentication-request)
       (p/then (fn [response] (let [t (jwt/sign {:user (:user response)
-                                                :exp  (+ (now) ttl)}
+                                                :exp  (quot (+ (now) ttl) 1000)}
                                                secret)]
                                (assoc response :access_token t))))))
 
 (defmethod authenticate "access-token" [authentication-request secret ttl]
   (try
     (let [token (get-in authentication-request [:authentication :token])
-          user (:user (jwt/unsign token secret {:now (now)}))]
+          user (:user (jwt/unsign token secret {:now (quot (now) 1000)}))]
 
       (p/resolved {:type         :success
                    :login        user

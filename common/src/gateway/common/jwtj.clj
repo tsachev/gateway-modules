@@ -18,8 +18,7 @@
                    (cheshire/generate-string)
                    (.getBytes StandardCharsets/UTF_8)
                    (Base64/encodeBase64URLSafeString))
-        p (-> (cond-> payload
-                      (:exp payload) (update :exp / 1000))
+        p (-> payload
               (cheshire/generate-string)
               (.getBytes StandardCharsets/UTF_8)
               (Base64/encodeBase64URLSafeString))
