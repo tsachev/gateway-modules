@@ -2,8 +2,7 @@
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[instaparse "_"]
-                 [com.auth0/java-jwt "3.8.1"]
-                 [commons-codec/commons-codec "1.13"]
+                 [com.auth0/java-jwt "3.18.1"]
                  [cheshire "_"]
                  [com.taoensso/timbre "_"]
                  [gnl/ghostwheel "_"]
