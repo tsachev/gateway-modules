@@ -1,6 +1,6 @@
-*/pom.xml
-*/target/
-*/.lein-failures
-**/*.iml
-.idea
-**/.nrepl-port
+pom.xml
+target/
+.lein-failures
+*.iml
+.idea/
+.nrepl-port
