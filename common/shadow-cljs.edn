@@ -1,0 +1,6 @@
+{:lein   {:profile "+cljs"}
+ :builds {:test
+          {:target  :node-test
+           :output-to "target/node-tests.js"
+           :ns-regexp "t-*"
+           :autorun true}}}

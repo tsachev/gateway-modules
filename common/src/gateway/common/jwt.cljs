@@ -30,6 +30,18 @@
   [string]
   (base64-url-escape (b64/encodeString string)))
 
+(defn- base64-url-unescape
+  [b64-url-escaped]
+  (-> b64-url-escaped
+      (str/replace "_" "/")
+      (str/replace "-" "+")))
+
+(defn- base64-url-decode
+  [string]
+  (-> string
+      (base64-url-unescape)
+      (b64/decodeString)))
+
 (defn- create-hmac
   [algo key]
   (let [hasher (case algo
@@ -124,11 +136,11 @@
        (throw (js/Error. "invalid token")))
 
      (let [alg (-> h
-                   (b64/decodeString)
+                   (base64-url-decode)
                    (json/parse)
                    (.. -alg))
 
-           claims (->> (json/parse (b64/decodeString p))
+           claims (->> (json/parse (base64-url-decode p))
                        (js->clj)
                        (reduce-kv #(assoc %1 (keyword %2) %3) {}))
 

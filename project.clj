@@ -16,7 +16,8 @@
                                                 [lein-ancient "0.6.15"]
                                                 [test2junit "1.4.2"]]
                                  :dependencies [[org.clojure/tools.reader "_"]]}
-
+             :cljs              {:modules      {:dirs ["common"]}
+                                 :dependencies [[thheller/shadow-cljs "2.17.8"]]}
              :limited-resources {:jvm-opts ["-Xms1g" "-Xmx1g" "-XX:+HeapDumpOnOutOfMemoryError"
                                             "-Xss512k" "-XX:MetaspaceSize=256m" "-XX:MaxMetaspaceSize=256m"
                                             "-XX:CompressedClassSpaceSize=64m" "-XX:ReservedCodeCacheSize=32m"]}}
@@ -28,6 +29,7 @@
   :modules {:inherited {:url                 "https://github.com/Glue42/gateway-modules"
                         :license             {:name "MIT"
                                               :url  "https://opensource.org/licenses/MIT"}
+                        :aliases {"shadow-cljs" ["run" "-m" "shadow.cljs.devtools.cli"]}
                         :deploy-repositories [["clojars" {:url      "https://clojars.org/repo"
                                                           :username :env/CLOJARS_USER
                                                           :password :env/CLOJARS_PASS

@@ -29,6 +29,10 @@ jobs:
         with:
           java-version: '8'
 
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
       - uses: DeLaGuardo/setup-clojure@3.5
         with:
           tools-deps: '1.10.1.483'
@@ -51,6 +55,9 @@ jobs:
 
       - name: Test
         run: lein modules test
+
+      - name: Test JS
+        run: lein with-profiles +cljs modules shadow-cljs compile test
 
       - name: Publish
         env:

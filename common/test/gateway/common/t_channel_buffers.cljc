@@ -1,9 +1,13 @@
-(ns gateway.common.t-core
-  (:require [clojure.test :refer :all]
+(ns gateway.common.t-channel-buffers
+  (:require
+    #?(:cljs [cljs.test :refer-macros [deftest is testing]]
+       :clj  [clojure.test :refer [deftest is testing]])
 
             [taoensso.timbre :as timbre]
             [gateway.common.channel-buffers :as buf]
             [clojure.core.async :as a]))
+
+#?(:cljs (set! *warn-on-infer* false))
 
 (deftest drop-message-on-full-buffer
   (testing "On put in a channel over dropping buffer catch on-drop event and get dropped counter incremented"
