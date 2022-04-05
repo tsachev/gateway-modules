@@ -13,7 +13,7 @@
 
             [ghostwheel.core :as g :refer [>defn >defn- >fdef => | <- ?]]))
 
-(defonce default-authentication-timeout 5000)
+(defonce default-config {:timeout 5000 :max-pending-requests 20000})
 
 (defn sanitize [authentication]
   (if (:secret authentication)
@@ -81,8 +81,10 @@
 
 (defn authenticator
   [config impl]
-  (let [ch (a/chan (a/dropping-buffer 20000))]
-    (timbre/info "starting authenticator" impl)
+  (let [{timeout :timeout
+         max-pending-requests :max-pending-requests} (merge default-config config)
+        ch (a/chan (a/dropping-buffer max-pending-requests))]
+    (timbre/info "starting authenticator with impl " impl)
     (a/go-loop []
       (let [msg (a/<! ch)]
         (when msg
@@ -95,4 +97,4 @@
                 (p/then (fn [v] (resolve v)))
                 (p/catch (fn [v] (reject v))))
             (recur)))))
-    (DefaultAuthenticator. ch (:timeout config default-authentication-timeout))))
+    (DefaultAuthenticator. ch timeout)))
