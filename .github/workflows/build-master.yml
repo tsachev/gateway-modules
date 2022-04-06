@@ -44,6 +44,12 @@ jobs:
           path: ~/.m2/repository
           key: maven
 
+      - name: Cache NPM dependencies
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm
+          key: npm
+
       - name: Cache Git dependencies
         uses: actions/cache@v1
         with:
