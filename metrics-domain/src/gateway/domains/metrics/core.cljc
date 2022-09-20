@@ -127,7 +127,7 @@
                          (map keywordize-definition)
                          (filter #(filters/allowed? filters repo-id (:name %))))]
     (when (seq definitions)
-      (timbre/debug "publisher" repo-id "adding metrics" (map :name definitions))
+      (timbre/debug "publisher" repo-id "adding metrics" (pr-str (map :name definitions)))
       (let [[state repositories] (ensure-repositories state repository-factories peer)]
         (when (seq repositories)
           [(assoc-in state
@@ -136,12 +136,18 @@
 
 (defn publish-metrics
   [state source request filters]
-  (let [{:keys [peer_id values]} request
+  (let [{:keys [peer_id values request_id]} request
         peer (peers/by-id* state peer_id)
         repo-id (get-in peer [:metrics-domain :repo-id])
         values (->> values
                     (map util/keywordize)
-                    (filter #(filters/allowed? filters repo-id (:name %))))]
+                    (filter #(filters/allowed? filters repo-id (:name %))))
+        large-msg (some-> (meta request) (:large-msg))]
+    (when large-msg
+      (timbre/warn "metrics"
+                   "peer" (:identity peer)
+                   "publishes metrics"
+                   "using request" request_id "with large payload" large-msg))
     (when (seq values)
       (when-let [repositories (get-in peer [:metrics-domain :repos])]
         (doseq [r repositories]

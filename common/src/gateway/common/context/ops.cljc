@@ -124,10 +124,10 @@
 (defn update*
   "Updates a context. Returns a new state and announcement messages"
 
-  [state context updater-id delta version]
+  [state context updater-id delta version request-id]
   (let [context-id (:id context)
         updated-state (state/apply-delta state context delta version)]
-
+    (log-action "context" "peer" updater-id "updated context" (:name context) "using request" request-id)
     [updated-state (->> (:members context)
                         (remove (partial = updater-id))
                         (map (partial peers/by-id updated-state))
@@ -150,7 +150,8 @@
                                 context
                                 peer_id
                                 (util/keywordize delta)
-                                (:version request)))
+                                (:version request)
+                                (:request_id request)))
               [state nil]))
           (do
             (timbre/warn "unable to find remote context" name)
@@ -176,7 +177,8 @@
                           context
                           peer_id
                           (util/keywordize delta)
-                          version)
+                          version
+                          request_id)
                  ((fn [_] [_ [(m/success domain-uri
                                          source
                                          request_id
@@ -344,7 +346,8 @@
                        existing-context
                        peer_id
                        {:reset (:data request)}
-                       (:version request))
+                       (:version request)
+                       request_id)
               [state nil]))
 
           ;; new context
