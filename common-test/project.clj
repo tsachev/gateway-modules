@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/common-test "3.0.18"
+(defproject com.tick42.gateway/common-test "3.0.19-SNAPSHOT"
   :plugins [[lein-modules "0.3.11"]]
   :dependencies [[com.tick42.gateway/common :version]
 
