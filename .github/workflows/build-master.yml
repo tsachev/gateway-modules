@@ -14,13 +14,18 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: setup GPG
-        run: |
-          gpgconf --kill gpg-agent
-          gpg-agent --daemon --allow-preset-passphrase
-          gpg --import --batch signing.key
-          /usr/lib/gnupg2/gpg-preset-passphrase --preset --passphrase "$GPG_PASSPHRASE" 526FC4D3D61594955F85B9FA443E44B40A493933
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: "signing.key"
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          fingerprint: "526FC4D3D61594955F85B9FA443E44B40A493933"
+#        run: |
+#          gpgconf --kill gpg-agent
+#          gpg-agent --daemon --allow-preset-passphrase
+#          gpg --import --batch signing.key
+#          /usr/lib/gnupg2/gpg-preset-passphrase --preset --passphrase "$GPG_PASSPHRASE" 526FC4D3D61594955F85B9FA443E44B40A493933
+#        env:
+#          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 #      - run: echo "test" | gpg --clear-sign
 #      - run: gpg --list-secret-keys
 #      - run: gpg --with-keygrip -k 5771E8CF02241B72
