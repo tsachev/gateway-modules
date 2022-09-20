@@ -16,7 +16,7 @@ jobs:
       - name: setup GPG
         uses: crazy-max/ghaction-import-gpg@v5
         with:
-          gpg_private_key: "signing.key"
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
           fingerprint: "526FC4D3D61594955F85B9FA443E44B40A493933"
 #        run: |
