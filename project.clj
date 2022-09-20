@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/modules-parent "3.0.17-SNAPSHOT"
+(defproject com.tick42.gateway/modules-parent "3.0.17"
   :description "Tick42 Gateway Modules Parent"
   :url "https://github.com/Glue42/gateway-modules"
   :license {:name "MIT"

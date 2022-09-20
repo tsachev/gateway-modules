@@ -1,4 +1,4 @@
-(defproject com.tick42.gateway/global-domain "3.0.17-SNAPSHOT"
+(defproject com.tick42.gateway/global-domain "3.0.17"
   :plugins [[lein-modules "0.3.11"]]
 
   :dependencies [[com.tick42.gateway/auth :version]
