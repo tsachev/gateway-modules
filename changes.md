@@ -1,5 +1,12 @@
 <!-- markdownlint-disable no-duplicate-heading -->
 
+## 3.0.19
+* enhance large-msg handling
+* more action logging (context/metrics)
+
+## 3.0.18
+see 3.0.19 ^^^
+
 ## 3.0.15
 
 ### Changes

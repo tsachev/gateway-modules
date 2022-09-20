@@ -13,15 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: setup GPG
-        run: |
-          gpgconf --kill gpg-agent
-          gpg-agent --daemon --allow-preset-passphrase
-          gpg --import --batch signing.key
-          /usr/lib/gnupg2/gpg-preset-passphrase --preset --passphrase "$GPG_PASSPHRASE" 526FC4D3D61594955F85B9FA443E44B40A493933
-        env:
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
       - uses: actions/setup-java@v1
         with:
           java-version: '8'
